@@ -19,5 +19,6 @@ Create a `.env` file with your key (never hardcode keys in source):
 VITE_LLM_API_KEY=your-key-here
 ```
 
-The app reads `VITE_LLM_API_KEY` in the browser build. For server-side usage, prefer a proxy
-and use `LLM_API_KEY`/`OPENAI_API_KEY` on the server environment instead.
+The app reads `VITE_LLM_API_KEY` in the browser build for card, image, and voice generation.
+For server-side usage, prefer a proxy and use `LLM_API_KEY`/`OPENAI_API_KEY` on the server
+environment instead.

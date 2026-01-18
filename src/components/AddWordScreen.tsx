@@ -36,6 +36,8 @@ export const AddWordScreen = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const canGenerate = inputText.trim().length > 0 && !isGenerating;
+  const needsApiKey =
+    error?.includes("LLM API key not configured") || mediaError?.includes("LLM API key not configured");
 
   const handleGenerate = async (regenerate = false) => {
     setIsGenerating(true);

@@ -35,14 +35,12 @@ const buildPrompt = (inputLanguage: "de" | "en", userText: string) => {
     `Input: ${userText}`,
     `Input language: ${inputLanguage}`,
     "Return JSON in the following shape:",
-    `{"german":"","english":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":"","pronunciation":"","imagePrompt":""}`,
+    `{"german":"","english":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":""}`,
     "Rules:",
     "- If inputLanguage is 'de': treat input as German, translate to English.",
     "- If inputLanguage is 'en': produce most common German translation.",
     "- Infer partOfSpeech; if not noun, article must be null.",
     "- Keep example sentence short, A2-B1.",
-    "- Provide a short pronunciation hint (IPA or syllable split) if useful.",
-    "- Provide a short image prompt describing the concept (optional).",
     "- Avoid sensitive/personal content.",
     "- Output JSON only, no markdown.",
   ].join("\n");
@@ -55,15 +53,7 @@ const resolveApiKey = (apiKey?: string) => {
     return apiKey;
   }
 
-  if (typeof import.meta !== "undefined") {
-    const metaEnv = (import.meta as { env?: Record<string, string> }).env;
-    const viteKey = metaEnv?.VITE_LLM_API_KEY ?? metaEnv?.VITE_OPENAI_API_KEY;
-    if (viteKey) {
-      return viteKey;
-    }
-  }
-
-  if (typeof process !== "undefined" && process?.env) {
+  if (typeof process !== "undefined") {
     return process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
   }
 
@@ -81,8 +71,6 @@ const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
   const exampleDe = draft.exampleDe.trim();
   const exampleEn = draft.exampleEn.trim();
   const notes = draft.notes?.trim();
-  const pronunciation = draft.pronunciation?.trim();
-  const imagePrompt = draft.imagePrompt?.trim();
 
   return {
     ...draft,
@@ -91,8 +79,6 @@ const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
     exampleDe,
     exampleEn,
     notes: notes ? notes : undefined,
-    pronunciation: pronunciation ? pronunciation : undefined,
-    imagePrompt: imagePrompt ? imagePrompt : undefined,
   };
 };
 

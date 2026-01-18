@@ -12,8 +12,6 @@ export const wordEntryDraftSchema = z
     exampleDe: z.string().min(1),
     exampleEn: z.string().min(1),
     notes: z.string().optional().nullable(),
-    pronunciation: z.string().optional().nullable(),
-    imagePrompt: z.string().optional().nullable(),
   })
   .refine(
     (data) => (data.partOfSpeech === "noun" ? data.article !== null : data.article === null),

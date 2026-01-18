@@ -10,8 +10,6 @@ export type WordEntryDraft = {
   exampleDe: string;
   exampleEn: string;
   notes?: string;
-  pronunciation?: string;
-  imagePrompt?: string;
 };
 
 export type WordEntry = WordEntryDraft & {

@@ -11,8 +11,6 @@ const emptyDraft: WordEntryDraft = {
   exampleDe: "",
   exampleEn: "",
   notes: "",
-  pronunciation: "",
-  imagePrompt: "",
 };
 
 export const AddWordScreen = () => {
@@ -74,9 +72,6 @@ export const AddWordScreen = () => {
         Word or phrase
         <input value={inputText} onChange={(event) => setInputText(event.target.value)} />
       </label>
-      <p style={{ marginTop: 4, color: "#666" }}>
-        Uses <code>VITE_LLM_API_KEY</code> from your environment to call the LLM.
-      </p>
       <div>
         <button type="button" disabled={!canGenerate} onClick={() => handleGenerate(false)}>
           Generate Card
@@ -123,7 +118,6 @@ export const AddWordScreen = () => {
           Article
           <select
             value={draft.article ?? ""}
-            disabled={draft.partOfSpeech !== "noun"}
             onChange={(event) =>
               setDraft({
                 ...draft,
@@ -157,20 +151,6 @@ export const AddWordScreen = () => {
           <input
             value={notesValue}
             onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
-          />
-        </label>
-        <label>
-          Pronunciation
-          <input
-            value={draft.pronunciation ?? ""}
-            onChange={(event) => setDraft({ ...draft, pronunciation: event.target.value })}
-          />
-        </label>
-        <label>
-          Image prompt
-          <input
-            value={draft.imagePrompt ?? ""}
-            onChange={(event) => setDraft({ ...draft, imagePrompt: event.target.value })}
           />
         </label>
       </div>

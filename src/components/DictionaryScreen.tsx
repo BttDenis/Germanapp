@@ -3,9 +3,10 @@ import "./DictionaryScreen.css";
 
 type DictionaryScreenProps = {
   entries: WordEntry[];
+  onClearEntries?: () => void;
 };
 
-export const DictionaryScreen = ({ entries }: DictionaryScreenProps) => {
+export const DictionaryScreen = ({ entries, onClearEntries }: DictionaryScreenProps) => {
   if (entries.length === 0) {
     return (
       <section className="dictionary-screen dictionary-screen--empty">
@@ -25,7 +26,18 @@ export const DictionaryScreen = ({ entries }: DictionaryScreenProps) => {
             Review every word you have saved so far, newest entries at the top.
           </p>
         </div>
-        <span className="dictionary-screen__count">{entries.length} total</span>
+        <div className="dictionary-screen__actions">
+          <span className="dictionary-screen__count">{entries.length} total</span>
+          {onClearEntries ? (
+            <button
+              type="button"
+              className="dictionary-screen__clear"
+              onClick={onClearEntries}
+            >
+              Clear all words
+            </button>
+          ) : null}
+        </div>
       </header>
       <div className="dictionary-screen__list">
         {entries.map((entry) => (

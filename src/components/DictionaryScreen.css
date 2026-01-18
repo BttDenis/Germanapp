@@ -18,6 +18,14 @@
   align-items: center;
 }
 
+.dictionary-screen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .dictionary-screen__eyebrow {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -38,6 +46,20 @@
   padding: 6px 12px;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.dictionary-screen__clear {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #fca5a5;
+  background: #fff5f5;
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dictionary-screen__clear:hover {
+  background: #fee2e2;
 }
 
 .dictionary-screen__list {

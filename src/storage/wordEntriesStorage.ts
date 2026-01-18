@@ -52,3 +52,11 @@ export const saveWordEntries = (inputs: WordEntryInput[]): WordEntry[] => {
   persistEntries([...nextEntries, ...entries]);
   return nextEntries;
 };
+
+export const clearWordEntries = () => {
+  if (storage.removeItem) {
+    storage.removeItem(STORAGE_KEY);
+  } else {
+    persistEntries([]);
+  }
+};

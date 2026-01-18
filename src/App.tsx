@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
-import { getWordEntries } from "./storage/wordEntriesStorage";
+import { clearWordEntries, getWordEntries } from "./storage/wordEntriesStorage";
 import { WordEntry } from "./types/wordEntry";
 import "./App.css";
 
@@ -20,6 +20,11 @@ export const App = () => {
   const handleEntrySaved = (entry: WordEntry) => {
     setEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
     setCurrentPage("learn");
+  };
+
+  const handleClearEntries = () => {
+    clearWordEntries();
+    setEntries([]);
   };
 
   return (
@@ -58,7 +63,7 @@ export const App = () => {
       ) : currentPage === "add" ? (
         <AddWordScreen onEntrySaved={handleEntrySaved} />
       ) : (
-        <DictionaryScreen entries={entries} />
+        <DictionaryScreen entries={entries} onClearEntries={handleClearEntries} />
       )}
     </main>
   );

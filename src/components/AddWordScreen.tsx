@@ -3,8 +3,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { generateLlmCard } from "../services/llmCardGenerator";
 import { generateLlmImage } from "../services/llmImageGenerator";
 import { generateLlmVoice } from "../services/llmVoiceGenerator";
-import { saveWordEntry } from "../storage/wordEntriesStorage";
+import { saveWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
 import { WordEntry, WordEntryDraft } from "../types/wordEntry";
+import { commonWords } from "../data/commonWords";
 import "./AddWordScreen.css";
 
 const emptyDraft: WordEntryDraft = {
@@ -40,6 +41,7 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
 
   const canGenerate = inputText.trim().length > 0 && !isGenerating;
   const needsApiKey =
@@ -87,6 +89,28 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
     const savedEntry = saveWordEntry(payload);
     setSaveMessage(`Saved "${payload.german || payload.english}" to your dictionary.`);
     onEntrySaved?.(savedEntry);
+    setBatchMessage(null);
+  };
+
+  const handleBatchGenerate = () => {
+    const baseTime = new Date().toISOString();
+    const batchEntries = commonWords.map((word) => ({
+      german: word.german,
+      english: word.english,
+      partOfSpeech: word.partOfSpeech,
+      article: word.article,
+      exampleDe: `Ich lerne das Wort \"${word.german}\".`,
+      exampleEn: `I am learning the word \"${word.english}\".`,
+      notes: "Seeded from common words list.",
+      source: "manual" as const,
+      llmGeneratedAt: baseTime,
+      llmModel: "common-words-seed",
+    }));
+
+    const savedEntries = saveWordEntries(batchEntries);
+    setSaveMessage(null);
+    setBatchMessage(`Added ${savedEntries.length} common words to your dictionary.`);
+    savedEntries.forEach((entry) => onEntrySaved?.(entry));
   };
 
   const notesValue = useMemo(() => draft.notes ?? "", [draft.notes]);
@@ -139,6 +163,22 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
         </div>
         {error ? <p className="add-word-screen__error" role="alert">{error}</p> : null}
         {mediaError ? <p className="add-word-screen__error" role="alert">{mediaError}</p> : null}
+      </section>
+
+      <section className="add-word-screen__panel">
+        <div className="add-word-screen__batch">
+          <div>
+            <p className="add-word-screen__eyebrow">Quick start</p>
+            <h3>Generate 100 common words</h3>
+            <p className="add-word-screen__subhead">
+              Add a ready-made set of the most common words to your dictionary in one click.
+            </p>
+          </div>
+          <button type="button" className="primary" onClick={handleBatchGenerate}>
+            Add 100 words
+          </button>
+        </div>
+        {batchMessage ? <p className="add-word-screen__success">{batchMessage}</p> : null}
       </section>
 
       {hasGeneratedCard ? (

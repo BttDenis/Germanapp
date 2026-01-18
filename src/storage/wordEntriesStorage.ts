@@ -42,3 +42,13 @@ export const saveWordEntry = (input: WordEntryInput): WordEntry => {
   return nextEntry;
 };
 
+export const saveWordEntries = (inputs: WordEntryInput[]): WordEntry[] => {
+  const entries = getWordEntries();
+  const timestamp = Date.now();
+  const nextEntries = inputs.map((input, index) => ({
+    ...input,
+    id: `entry-${timestamp}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+  }));
+  persistEntries([...nextEntries, ...entries]);
+  return nextEntries;
+};

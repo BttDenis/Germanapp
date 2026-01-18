@@ -4,6 +4,7 @@ import { normalizeGerman } from "../utils/normalizeGerman";
 import { getCachedDraft, setCachedDraft } from "./llmCache";
 import { createDailyRateLimiter } from "./llmRateLimiter";
 import { WordEntryDraft } from "../types/wordEntry";
+import { resolveApiKey } from "./llmApiKey";
 
 export type LlmCardGeneratorOptions = {
   inputLanguage: "de" | "en";
@@ -46,26 +47,6 @@ const buildPrompt = (inputLanguage: "de" | "en", userText: string) => {
   ].join("\n");
 
   return { system, user };
-};
-
-const resolveApiKey = (apiKey?: string) => {
-  if (apiKey) {
-    return apiKey;
-  }
-
-  if (typeof import.meta !== "undefined" && import.meta.env) {
-    return (
-      import.meta.env.VITE_LLM_API_KEY ??
-      import.meta.env.VITE_OPENAI_API_KEY ??
-      null
-    );
-  }
-
-  if (typeof process !== "undefined") {
-    return process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
-  }
-
-  return null;
 };
 
 const parseJson = (text: string) => {

@@ -9,6 +9,7 @@ import { WordEntry } from "../types/wordEntry";
 import "./LearningScreen.css";
 
 const SESSION_GOAL = 8;
+const GAME_MODES: GameMode[] = ["flashcards", "multiple-choice", "fill-blank"];
 
 type LearningScreenProps = {
   entries: WordEntry[];
@@ -40,6 +41,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   const [fillAnswer, setFillAnswer] = useState("");
   const [sessionStats, setSessionStats] = useState<SessionStats>({ reviewed: 0, correct: 0 });
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [sessionActive, setSessionActive] = useState(false);
 
   useEffect(() => {
     setProgressMap(getLearningProgress());
@@ -94,6 +96,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setShowAnswer(false);
     setFillAnswer("");
     setFeedback(null);
+    setGameMode(GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)]);
   };
 
   const handleReview = (isCorrect: boolean) => {
@@ -144,6 +147,13 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     return shuffle([activeEntry, ...distractors]).map((entry) => entry.english);
   }, [activeEntry, entries]);
 
+  const handleStartSession = () => {
+    setSessionStats({ reviewed: 0, correct: 0 });
+    setFeedback(null);
+    setSessionActive(true);
+    pickNextEntry(activeEntry?.id);
+  };
+
   if (entries.length === 0) {
     return (
       <section className="learning-screen learning-screen--empty">
@@ -158,29 +168,39 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   return (
     <section className="learning-screen">
       <header className="learning-screen__header">
-        <div>
-          <p className="learning-screen__eyebrow">Main learning hub</p>
-          <h2>Learning studio</h2>
-          <p className="learning-screen__subhead">
-            Mix games, track mastery, and keep your daily practice streak on pace.
-          </p>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Exit session"
+        >
+          ✕
+        </button>
+        <div className="learning-screen__progressbar">
+          <span
+            style={{
+              width: `${Math.min((sessionStats.reviewed / SESSION_GOAL) * 100, 100)}%`,
+            }}
+          />
         </div>
-        <div className="learning-screen__goal">
-          <p>Daily goal</p>
-          <span>
-            {Math.min(sessionStats.reviewed, SESSION_GOAL)}/{SESSION_GOAL} reviews
-          </span>
-          <div className="learning-screen__progress">
-            <span
-              style={{
-                width: `${Math.min((sessionStats.reviewed / SESSION_GOAL) * 100, 100)}%`,
-              }}
-            />
-          </div>
-        </div>
+        <button type="button" className="text-button" onClick={() => pickNextEntry(activeEntry?.id)}>
+          Skip
+        </button>
       </header>
 
+      <div className="learning-screen__title">
+        <p className="learning-screen__eyebrow">Learning studio</p>
+        <h2>One-session practice</h2>
+        <p className="learning-screen__subhead">
+          Answer quick prompts to move to the next card.
+        </p>
+      </div>
+
       <div className="learning-screen__stats">
+        <article>
+          <h3>Session progress</h3>
+          <p>{sessionStats.reviewed} reviewed</p>
+          <span>{sessionStats.correct} correct answers</span>
+        </article>
         <article>
           <h3>Vocabulary bank</h3>
           <p>{entries.length} words saved</p>
@@ -189,131 +209,112 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
         <article>
           <h3>Mastery</h3>
           <p>{summary.mastered} mastered</p>
-          <span>{summary.learning} building confidence</span>
-        </article>
-        <article>
-          <h3>Focus list</h3>
-          <p>{summary.needsPractice} need practice</p>
-          <span>{sessionStats.correct} correct in this session</span>
+          <span>{summary.needsPractice} need practice</span>
         </article>
       </div>
 
-      <div className="learning-screen__modes">
-        <button
-          type="button"
-          className={gameMode === "flashcards" ? "mode-button is-active" : "mode-button"}
-          onClick={() => setGameMode("flashcards")}
-        >
-          Flashcards
-        </button>
-        <button
-          type="button"
-          className={gameMode === "multiple-choice" ? "mode-button is-active" : "mode-button"}
-          onClick={() => setGameMode("multiple-choice")}
-        >
-          Multiple choice
-        </button>
-        <button
-          type="button"
-          className={gameMode === "fill-blank" ? "mode-button is-active" : "mode-button"}
-          onClick={() => setGameMode("fill-blank")}
-        >
-          Fill in the blank
-        </button>
-      </div>
-
-      <div className="learning-screen__game">
-        <aside className="learning-screen__coach">
-          <h3>Word coach</h3>
-          {activeEntry ? (
-            <ul>
-              <li>
-                <strong>Active word:</strong> {activeEntry.article ? `${activeEntry.article} ` : ""}
-                {activeEntry.german}
-              </li>
-              <li>
-                <strong>Meaning:</strong> {activeEntry.english}
-              </li>
-              <li>
-                <strong>Strength:</strong> {progress ? `${progress.strength}%` : "New"}
-              </li>
-              <li>
-                <strong>Streak:</strong> {progress?.correctStreak ?? 0} correct
-              </li>
-            </ul>
-          ) : null}
-          {feedback ? <p className="learning-screen__feedback">{feedback}</p> : null}
-          <button type="button" className="ghost-button" onClick={() => pickNextEntry(activeEntry?.id)}>
-            Swap word
-          </button>
-        </aside>
-
-        <div className="learning-screen__panel">
-          {gameMode === "flashcards" && activeEntry ? (
-            <div className="game-card">
-              <h3>Flashcard</h3>
-              <p className="game-card__prompt">Tap to reveal the translation.</p>
-              <button
-                type="button"
-                className="flashcard"
-                onClick={() => setShowAnswer((prev) => !prev)}
-              >
-                <span>{activeEntry.article ? `${activeEntry.article} ` : ""}{activeEntry.german}</span>
-                {showAnswer ? <span className="flashcard__answer">{activeEntry.english}</span> : null}
-              </button>
-              <div className="game-card__actions">
-                <button type="button" className="outline-button" onClick={() => handleFlashcardAction(false)}>
-                  Needs practice
-                </button>
-                <button type="button" className="primary-button" onClick={() => handleFlashcardAction(true)}>
-                  I got it
-                </button>
-              </div>
+      <div className="learning-session">
+        <div className="learning-session__card">
+          <div className="learning-session__media" aria-hidden="true" />
+          <div className="learning-session__content">
+            <p className="learning-session__label">Active card</p>
+            <h3 className="learning-session__word">
+              {activeEntry ? `${activeEntry.article ? `${activeEntry.article} ` : ""}${activeEntry.german}` : "—"}
+            </h3>
+            <p className="learning-session__translation">
+              {activeEntry ? activeEntry.english : "Select a word to begin."}
+            </p>
+            <div className="learning-session__meta">
+              <span>{progress ? `${progress.strength}% strength` : "New word"}</span>
+              <span>{progress?.correctStreak ?? 0} streak</span>
             </div>
-          ) : null}
-
-          {gameMode === "multiple-choice" && activeEntry ? (
-            <div className="game-card">
-              <h3>Multiple choice</h3>
-              <p className="game-card__prompt">Choose the correct translation.</p>
-              <div className="choice-prompt">
-                {activeEntry.article ? `${activeEntry.article} ` : ""}
-                {activeEntry.german}
-              </div>
-              <div className="choice-grid">
-                {multipleChoiceOptions.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className="choice-button"
-                    onClick={() => handleMultipleChoice(option)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {gameMode === "fill-blank" && activeEntry ? (
-            <div className="game-card">
-              <h3>Fill in the blank</h3>
-              <p className="game-card__prompt">Type the German word that matches the meaning.</p>
-              <div className="fill-prompt">{activeEntry.english}</div>
-              <form className="fill-form" onSubmit={handleFillSubmit}>
-                <input
-                  type="text"
-                  value={fillAnswer}
-                  onChange={(event) => setFillAnswer(event.target.value)}
-                  placeholder="Type the German word"
-                />
-                <button type="submit" className="primary-button" disabled={!fillAnswer.trim()}>
-                  Check answer
-                </button>
-              </form>
-            </div>
-          ) : null}
+          </div>
         </div>
+
+        {!sessionActive ? (
+          <div className="learning-session__start">
+            <p>Ready to practice? Start a focused session and answer each prompt.</p>
+            <button type="button" className="primary-button" onClick={handleStartSession}>
+              Start session
+            </button>
+          </div>
+        ) : (
+          <div className="learning-session__game">
+            <div className="learning-session__game-header">
+              <div>
+                <p className="learning-session__game-label">Game</p>
+                <h3>
+                  {gameMode === "flashcards" && "Flashcard"}
+                  {gameMode === "multiple-choice" && "Multiple choice"}
+                  {gameMode === "fill-blank" && "Write the word"}
+                </h3>
+              </div>
+              {feedback ? <span className="learning-screen__feedback">{feedback}</span> : null}
+            </div>
+
+            {gameMode === "flashcards" && activeEntry ? (
+              <div className="game-card game-card--compact">
+                <p className="game-card__prompt">Tap to reveal the translation.</p>
+                <button
+                  type="button"
+                  className="flashcard"
+                  onClick={() => setShowAnswer((prev) => !prev)}
+                >
+                  <span>{activeEntry.article ? `${activeEntry.article} ` : ""}{activeEntry.german}</span>
+                  {showAnswer ? <span className="flashcard__answer">{activeEntry.english}</span> : null}
+                </button>
+                <div className="game-card__actions">
+                  <button type="button" className="outline-button" onClick={() => handleFlashcardAction(false)}>
+                    Needs practice
+                  </button>
+                  <button type="button" className="primary-button" onClick={() => handleFlashcardAction(true)}>
+                    I got it
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {gameMode === "multiple-choice" && activeEntry ? (
+              <div className="game-card game-card--compact">
+                <p className="game-card__prompt">Choose the correct translation.</p>
+                <div className="choice-prompt">
+                  {activeEntry.article ? `${activeEntry.article} ` : ""}
+                  {activeEntry.german}
+                </div>
+                <div className="choice-grid">
+                  {multipleChoiceOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className="choice-button"
+                      onClick={() => handleMultipleChoice(option)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {gameMode === "fill-blank" && activeEntry ? (
+              <div className="game-card game-card--compact">
+                <p className="game-card__prompt">Type the German word that matches the meaning.</p>
+                <div className="fill-prompt">{activeEntry.english}</div>
+                <form className="fill-form" onSubmit={handleFillSubmit}>
+                  <input
+                    type="text"
+                    value={fillAnswer}
+                    onChange={(event) => setFillAnswer(event.target.value)}
+                    placeholder="Type the German word"
+                  />
+                  <button type="submit" className="primary-button" disabled={!fillAnswer.trim()}>
+                    Check answer
+                  </button>
+                </form>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </section>
   );

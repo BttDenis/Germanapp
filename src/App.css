@@ -1,0 +1,49 @@
+.app {
+  font-family: system-ui;
+  padding: 32px 24px 48px;
+  max-width: 980px;
+  margin: 0 auto;
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.app__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.app__header h1 {
+  margin-bottom: 8px;
+}
+
+.app__header p {
+  color: #475569;
+  margin-top: 0;
+}
+
+.app__nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.app__nav-button {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app__nav-button.is-active {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}

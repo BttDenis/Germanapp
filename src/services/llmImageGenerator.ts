@@ -20,6 +20,31 @@ const DEFAULT_API_URL = "https://api.openai.com/v1/images/generations";
 const buildPrompt = (german: string) =>
   `Create a clean, friendly illustration that represents the German word or phrase: "${german}". Avoid text, logos, or watermarks.`;
 
+const formatErrorDetails = async (response: Response) => {
+  const statusLabel = `${response.status} ${response.statusText}`.trim();
+
+  try {
+    const text = await response.text();
+    if (!text) {
+      return statusLabel;
+    }
+
+    try {
+      const parsed = JSON.parse(text) as { error?: { message?: string }; message?: string };
+      const message = parsed?.error?.message ?? parsed?.message;
+      if (message) {
+        return `${statusLabel} - ${message}`;
+      }
+    } catch {
+      return `${statusLabel} - ${text}`;
+    }
+
+    return `${statusLabel} - ${text}`;
+  } catch {
+    return statusLabel;
+  }
+};
+
 export const generateLlmImage = async (
   options: LlmImageGeneratorOptions
 ): Promise<LlmImageResult> => {
@@ -53,7 +78,8 @@ export const generateLlmImage = async (
   });
 
   if (!response.ok) {
-    throw new Error("Image generation failed.");
+    const details = await formatErrorDetails(response);
+    throw new Error(`Image generation failed (${details}).`);
   }
 
   const payload = (await response.json()) as {

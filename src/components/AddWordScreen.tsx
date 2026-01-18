@@ -52,6 +52,8 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
     setIsGenerating(true);
     setError(null);
     setMediaError(null);
+    setImageState(null);
+    setAudioState(null);
 
     try {
       const generated = await generateLlmCard({
@@ -62,15 +64,33 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
       setDraft(generated.draft);
       setLlmMeta({ model: generated.llmModel, generatedAt: generated.llmGeneratedAt });
 
-      try {
-        const [image, voice] = await Promise.all([
-          generateLlmImage({ german: generated.draft.german }),
-          generateLlmVoice({ german: generated.draft.german }),
-        ]);
+      const [imageResult, voiceResult] = await Promise.allSettled([
+        generateLlmImage({ german: generated.draft.german }),
+        generateLlmVoice({ german: generated.draft.german }),
+      ]);
+
+      const mediaErrors: string[] = [];
+
+      if (imageResult.status === "fulfilled") {
+        const image = imageResult.value;
         setImageState({ url: image.imageUrl, model: image.llmModel, generatedAt: image.llmGeneratedAt });
+      } else {
+        mediaErrors.push(
+          `Image: ${imageResult.reason instanceof Error ? imageResult.reason.message : "generation failed"}.`
+        );
+      }
+
+      if (voiceResult.status === "fulfilled") {
+        const voice = voiceResult.value;
         setAudioState({ url: voice.audioUrl, model: voice.llmModel, generatedAt: voice.llmGeneratedAt });
-      } catch (mediaErr) {
-        setMediaError(mediaErr instanceof Error ? mediaErr.message : "Media generation failed.");
+      } else {
+        mediaErrors.push(
+          `Audio: ${voiceResult.reason instanceof Error ? voiceResult.reason.message : "generation failed"}.`
+        );
+      }
+
+      if (mediaErrors.length > 0) {
+        setMediaError(mediaErrors.join(" "));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");

@@ -10,6 +10,7 @@ export type WordEntryDraft = {
   exampleDe: string;
   exampleEn: string;
   notes?: string;
+  imageUrl?: string | null;
 };
 
 export type WordEntryInput = WordEntryDraft & {

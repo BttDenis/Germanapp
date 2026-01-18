@@ -40,6 +40,7 @@ const persistCache = (cache: Record<string, CachedImage>) => {
   storage.setItem(STORAGE_KEY, JSON.stringify(cache));
 };
 
+
 export const getCachedImage = (german: string, model: string): CachedImage | null => {
   const cache = readCache();
   return cache[getCacheKey(german, model)] ?? null;
@@ -48,5 +49,16 @@ export const getCachedImage = (german: string, model: string): CachedImage | nul
 export const saveCachedImage = (german: string, model: string, image: CachedImage) => {
   const cache = readCache();
   cache[getCacheKey(german, model)] = image;
-  persistCache(cache);
+  try {
+    persistCache(cache);
+  } catch (error) {
+    try {
+      storage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+    if (error instanceof Error) {
+      console.warn("Image cache storage failed; cache cleared.", error);
+    }
+  }
 };

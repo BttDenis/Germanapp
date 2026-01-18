@@ -45,6 +45,14 @@
   flex-wrap: wrap;
 }
 
+.add-word-screen__batch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
 .add-word-screen__error {
   color: #b42318;
   background: #fee4e2;

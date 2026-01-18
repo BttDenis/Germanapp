@@ -2,16 +2,22 @@
 
 ## Running the app
 
-This repository currently contains only TypeScript source modules in `src/` without an
-application entry point, build configuration, or dependency manifest (e.g. `package.json`).
-As a result, there is no runnable app or start command yet.
+This repo includes a simple Vite + React scaffold. To run locally:
 
-To make this runnable, you will need to add:
+```bash
+npm install
+npm run dev
+```
 
-- A project scaffold (for example, React, React Native, or a web framework)
-- A `package.json` with scripts (e.g. `dev`, `start`, `build`)
-- An application entry point that renders the UI (e.g. `src/App.tsx`)
-- Any required environment configuration (e.g. `.env` for API keys)
+Then open <http://localhost:5173>.
 
-Once those are in place, run the appropriate script from your chosen framework (for example,
-`npm run dev` or `npm start`).
+### LLM API key
+
+Create a `.env` file with your key (never hardcode keys in source):
+
+```bash
+VITE_LLM_API_KEY=your-key-here
+```
+
+The app reads `VITE_LLM_API_KEY` in the browser build. For server-side usage, prefer a proxy
+and use `LLM_API_KEY`/`OPENAI_API_KEY` on the server environment instead.

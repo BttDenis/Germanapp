@@ -45,6 +45,27 @@ const formatErrorDetails = async (response: Response) => {
   }
 };
 
+const fetchImageAsDataUrl = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Image download failed (${response.status} ${response.statusText}).`);
+  }
+  const blob = await response.blob();
+
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Image download failed (invalid data URL)."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Image download failed (read error)."));
+    reader.readAsDataURL(blob);
+  });
+};
+
 export const generateLlmImage = async (
   options: LlmImageGeneratorOptions
 ): Promise<LlmImageResult> => {
@@ -92,9 +113,18 @@ export const generateLlmImage = async (
     throw new Error("Image response missing data.");
   }
 
-  const imageUrl = data.url ?? (data.b64_json ? `data:image/png;base64,${data.b64_json}` : null);
-  if (!imageUrl) {
+  const inlineImageUrl = data.b64_json ? `data:image/png;base64,${data.b64_json}` : null;
+  if (!inlineImageUrl && !data.url) {
     throw new Error("Image response missing URL.");
+  }
+
+  let imageUrl = inlineImageUrl ?? data.url ?? "";
+  if (!inlineImageUrl && data.url) {
+    try {
+      imageUrl = await fetchImageAsDataUrl(data.url);
+    } catch {
+      imageUrl = data.url;
+    }
   }
 
   return {

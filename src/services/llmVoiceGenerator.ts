@@ -19,6 +19,31 @@ const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_API_URL = "https://api.openai.com/v1/audio/speech";
 const DEFAULT_VOICE = "alloy";
 
+const formatErrorDetails = async (response: Response) => {
+  const statusLabel = `${response.status} ${response.statusText}`.trim();
+
+  try {
+    const text = await response.text();
+    if (!text) {
+      return statusLabel;
+    }
+
+    try {
+      const parsed = JSON.parse(text) as { error?: { message?: string }; message?: string };
+      const message = parsed?.error?.message ?? parsed?.message;
+      if (message) {
+        return `${statusLabel} - ${message}`;
+      }
+    } catch {
+      return `${statusLabel} - ${text}`;
+    }
+
+    return `${statusLabel} - ${text}`;
+  } catch {
+    return statusLabel;
+  }
+};
+
 export const generateLlmVoice = async (
   options: LlmVoiceGeneratorOptions
 ): Promise<LlmVoiceResult> => {
@@ -54,7 +79,8 @@ export const generateLlmVoice = async (
   });
 
   if (!response.ok) {
-    throw new Error("Audio generation failed.");
+    const details = await formatErrorDetails(response);
+    throw new Error(`Audio generation failed (${details}).`);
   }
 
   const blob = await response.blob();

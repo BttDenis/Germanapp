@@ -131,13 +131,6 @@ export const AddWordScreen = () => {
         </div>
         {error ? <p className="add-word-screen__error" role="alert">{error}</p> : null}
         {mediaError ? <p className="add-word-screen__error" role="alert">{mediaError}</p> : null}
-        {needsApiKey ? (
-          <div className="add-word-screen__hint" role="note">
-            <p>Add your OpenAI key to a local <code>.env</code> file:</p>
-            <pre>VITE_LLM_API_KEY=your-key-here</pre>
-            <p>Restart the dev server after saving the file.</p>
-          </div>
-        ) : null}
       </section>
 
       {hasGeneratedCard ? (

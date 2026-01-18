@@ -1,3 +1,4 @@
+import { getCachedImage, saveCachedImage } from "../storage/imageCacheStorage";
 import { resolveApiKey } from "./llmApiKey";
 
 export type LlmImageGeneratorOptions = {
@@ -5,6 +6,7 @@ export type LlmImageGeneratorOptions = {
   apiKey?: string;
   apiUrl?: string;
   model?: string;
+  useCache?: boolean;
 };
 
 export type LlmImageResult = {
@@ -74,6 +76,7 @@ export const generateLlmImage = async (
     apiKey,
     apiUrl = DEFAULT_API_URL,
     model = DEFAULT_IMAGE_MODEL,
+    useCache = true,
   } = options;
 
   if (!german.trim()) {
@@ -85,19 +88,40 @@ export const generateLlmImage = async (
     throw new Error("LLM API key not configured.");
   }
 
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model,
-      prompt: buildPrompt(german),
-      response_format: "b64_json",
-      size: "1024x1024",
-    }),
-  });
+  if (useCache) {
+    const cached = getCachedImage(german, model);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  const requestImage = async (payload: Record<string, string>) =>
+    fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+  const basePayload = {
+    model,
+    prompt: buildPrompt(german),
+    size: "1024x1024",
+  };
+
+  let response = await requestImage({ ...basePayload, response_format: "b64_json" });
+  if (!response.ok) {
+    const details = await formatErrorDetails(response);
+    const shouldRetry = details.toLowerCase().includes("unknown parameter") &&
+      details.includes("response_format");
+    if (shouldRetry) {
+      response = await requestImage(basePayload);
+    } else {
+      throw new Error(`Image generation failed (${details}).`);
+    }
+  }
 
   if (!response.ok) {
     const details = await formatErrorDetails(response);
@@ -127,10 +151,16 @@ export const generateLlmImage = async (
     }
   }
 
-  return {
+  const result = {
     imageUrl,
     llmModel: model,
     llmGeneratedAt: new Date().toISOString(),
     llmRawJson: JSON.stringify(payload),
   };
+
+  if (useCache) {
+    saveCachedImage(german, model, result);
+  }
+
+  return result;
 };

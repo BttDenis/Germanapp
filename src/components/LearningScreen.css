@@ -19,6 +19,16 @@
   gap: 16px;
 }
 
+.learning-screen__header--session {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  padding: 12px 16px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  z-index: 1;
+}
+
 .learning-screen__progressbar {
   flex: 1;
   height: 6px;
@@ -121,6 +131,28 @@
 .learning-session__media {
   height: 180px;
   background: linear-gradient(135deg, #94a3b8, #cbd5f5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.learning-session__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.learning-session__media-placeholder {
+  color: #f8fafc;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.learning-session__result .learning-session__media-placeholder {
+  color: #64748b;
 }
 
 .learning-session__content {
@@ -169,6 +201,13 @@
   align-items: flex-start;
 }
 
+.learning-session__start-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .learning-session__game {
   background: #ffffff;
   border-radius: 20px;
@@ -187,6 +226,20 @@
   gap: 16px;
 }
 
+.learning-session__session-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.learning-session__session-meta p {
+  margin: 0;
+  font-weight: 600;
+}
+
 .learning-session__game-label {
   margin: 0 0 4px;
   color: #64748b;
@@ -196,9 +249,9 @@
 }
 
 .learning-screen__feedback {
-  background: #ecfdf3;
-  border: 1px solid #86efac;
-  color: #166534;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #334155;
   padding: 10px 12px;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -284,15 +337,23 @@
 .choice-button {
   padding: 14px 16px;
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
   font-weight: 600;
+  color: #0f172a;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.08);
   cursor: pointer;
 }
 
 .choice-button:hover {
   border-color: #6366f1;
-  color: #4338ca;
+  color: #312e81;
+  background: #eef2ff;
+}
+
+.choice-button:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
 
 .fill-prompt {
@@ -320,4 +381,49 @@
 
 .game-card--compact {
   gap: 12px;
+}
+
+.learning-session__result {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 16px;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  align-items: center;
+}
+
+.learning-session__result--correct {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.learning-session__result--incorrect {
+  border-color: #fecdd3;
+  background: #fff1f2;
+}
+
+.learning-session__result-media {
+  width: 120px;
+  height: 96px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.learning-session__result-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.learning-session__result h4 {
+  margin: 4px 0 6px;
+  font-size: 1.1rem;
 }

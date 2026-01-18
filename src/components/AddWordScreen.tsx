@@ -16,6 +16,7 @@ const emptyDraft: WordEntryDraft = {
   exampleDe: "",
   exampleEn: "",
   notes: "",
+  imageUrl: null,
 };
 
 type AddWordScreenProps = {
@@ -81,6 +82,7 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
   const handleSave = () => {
     const payload = {
       ...draft,
+      imageUrl: imageState?.url ?? null,
       source: llmMeta ? ("llm" as const) : ("manual" as const),
       llmGeneratedAt: llmMeta?.generatedAt ?? null,
       llmModel: llmMeta?.model ?? null,
@@ -102,6 +104,7 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
       exampleDe: `Ich lerne das Wort \"${word.german}\".`,
       exampleEn: `I am learning the word \"${word.english}\".`,
       notes: "Seeded from common words list.",
+      imageUrl: null,
       source: "manual" as const,
       llmGeneratedAt: baseTime,
       llmModel: "common-words-seed",

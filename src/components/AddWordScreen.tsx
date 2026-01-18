@@ -3,7 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { generateLlmCard } from "../services/llmCardGenerator";
 import { generateLlmImage } from "../services/llmImageGenerator";
 import { generateLlmVoice } from "../services/llmVoiceGenerator";
-import { WordEntryDraft } from "../types/wordEntry";
+import { saveWordEntry } from "../storage/wordEntriesStorage";
+import { WordEntry, WordEntryDraft } from "../types/wordEntry";
 import "./AddWordScreen.css";
 
 const emptyDraft: WordEntryDraft = {
@@ -16,7 +17,11 @@ const emptyDraft: WordEntryDraft = {
   notes: "",
 };
 
-export const AddWordScreen = () => {
+type AddWordScreenProps = {
+  onEntrySaved?: (entry: WordEntry) => void;
+};
+
+export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
   const [inputText, setInputText] = useState("");
   const [inputLanguage, setInputLanguage] = useState<"de" | "en">("de");
   const [draft, setDraft] = useState<WordEntryDraft>(emptyDraft);
@@ -34,6 +39,7 @@ export const AddWordScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const canGenerate = inputText.trim().length > 0 && !isGenerating;
   const needsApiKey =
@@ -78,7 +84,9 @@ export const AddWordScreen = () => {
       llmModel: llmMeta?.model ?? null,
     };
 
-    void payload;
+    const savedEntry = saveWordEntry(payload);
+    setSaveMessage(`Saved "${payload.german || payload.english}" to your dictionary.`);
+    onEntrySaved?.(savedEntry);
   };
 
   const notesValue = useMemo(() => draft.notes ?? "", [draft.notes]);
@@ -248,6 +256,7 @@ export const AddWordScreen = () => {
         <button type="button" className="primary" onClick={handleSave}>
           Save word
         </button>
+        {saveMessage ? <p className="add-word-screen__success">{saveMessage}</p> : null}
       </section>
     </div>
   );

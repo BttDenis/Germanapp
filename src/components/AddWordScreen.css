@@ -53,6 +53,14 @@
   font-size: 0.9rem;
 }
 
+.add-word-screen__success {
+  color: #14532d;
+  background: #dcfce7;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
 .field {
   display: flex;
   flex-direction: column;

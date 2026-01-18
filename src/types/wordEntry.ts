@@ -12,6 +12,12 @@ export type WordEntryDraft = {
   notes?: string;
 };
 
+export type WordEntryInput = WordEntryDraft & {
+  source: EntrySource;
+  llmModel: string | null;
+  llmGeneratedAt: string | null;
+};
+
 export type WordEntry = WordEntryDraft & {
   id: string;
   source: EntrySource;

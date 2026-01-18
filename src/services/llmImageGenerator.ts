@@ -73,6 +73,7 @@ export const generateLlmImage = async (
     body: JSON.stringify({
       model,
       prompt: buildPrompt(german),
+      response_format: "b64_json",
       size: "1024x1024",
     }),
   });

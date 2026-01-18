@@ -72,9 +72,6 @@ export const AddWordScreen = () => {
         Word or phrase
         <input value={inputText} onChange={(event) => setInputText(event.target.value)} />
       </label>
-      <p style={{ marginTop: 4, color: "#666" }}>
-        Uses <code>VITE_LLM_API_KEY</code> from your environment to call the LLM.
-      </p>
       <div>
         <button type="button" disabled={!canGenerate} onClick={() => handleGenerate(false)}>
           Generate Card
@@ -121,7 +118,6 @@ export const AddWordScreen = () => {
           Article
           <select
             value={draft.article ?? ""}
-            disabled={draft.partOfSpeech !== "noun"}
             onChange={(event) =>
               setDraft({
                 ...draft,

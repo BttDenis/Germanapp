@@ -53,15 +53,7 @@ const resolveApiKey = (apiKey?: string) => {
     return apiKey;
   }
 
-  if (typeof import.meta !== "undefined") {
-    const metaEnv = (import.meta as { env?: Record<string, string> }).env;
-    const viteKey = metaEnv?.VITE_LLM_API_KEY ?? metaEnv?.VITE_OPENAI_API_KEY;
-    if (viteKey) {
-      return viteKey;
-    }
-  }
-
-  if (typeof process !== "undefined" && process?.env) {
+  if (typeof process !== "undefined") {
     return process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
   }
 

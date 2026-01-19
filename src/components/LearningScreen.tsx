@@ -9,13 +9,13 @@ import { WordEntry } from "../types/wordEntry";
 import "./LearningScreen.css";
 
 const SESSION_WORD_LIMIT = 10;
-const GAME_MODES: GameMode[] = ["flashcards", "multiple-choice", "fill-blank"];
+const GAME_MODES: GameMode[] = ["multiple-choice", "fill-blank", "letter-select"];
 
 type LearningScreenProps = {
   entries: WordEntry[];
 };
 
-type GameMode = "flashcards" | "multiple-choice" | "fill-blank";
+type GameMode = "multiple-choice" | "fill-blank" | "letter-select";
 
 type SessionStats = {
   reviewed: number;
@@ -25,6 +25,12 @@ type SessionStats = {
 type SessionResult = {
   entry: WordEntry;
   isCorrect: boolean;
+};
+
+type LetterTile = {
+  id: number;
+  value: string;
+  used: boolean;
 };
 
 const shuffle = <T,>(items: T[]) => {
@@ -40,16 +46,17 @@ const formatDateKey = (value: string | null) => {
 
 export const LearningScreen = ({ entries }: LearningScreenProps) => {
   const [progressMap, setProgressMap] = useState<Record<string, LearningProgressEntry>>({});
-  const [gameMode, setGameMode] = useState<GameMode>("flashcards");
+  const [gameMode, setGameMode] = useState<GameMode>("multiple-choice");
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
-  const [showAnswer, setShowAnswer] = useState(false);
   const [fillAnswer, setFillAnswer] = useState("");
   const [sessionStats, setSessionStats] = useState<SessionStats>({ reviewed: 0, correct: 0 });
-  const [feedback, setFeedback] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [sessionNote, setSessionNote] = useState<string | null>(null);
-  const [lastAnswer, setLastAnswer] = useState<SessionResult | null>(null);
+  const [resultCard, setResultCard] = useState<SessionResult | null>(null);
+  const [pendingSessionComplete, setPendingSessionComplete] = useState(false);
+  const [letterTiles, setLetterTiles] = useState<LetterTile[]>([]);
+  const [letterProgress, setLetterProgress] = useState<string[]>([]);
 
   useEffect(() => {
     setProgressMap(getLearningProgress());
@@ -87,13 +94,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     };
   }, [progressMap]);
 
-  const progressForEntry = (entry: WordEntry | null) => {
-    if (!entry) {
-      return null;
-    }
-    return progressMap[entry.id] ?? null;
-  };
-
   const pickNextEntry = (previousId?: string) => {
     if (entries.length === 0) {
       return;
@@ -101,15 +101,15 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     const options = entries.filter((entry) => entry.id !== previousId);
     const next = (options.length ? options : entries)[Math.floor(Math.random() * (options.length || entries.length))];
     setActiveEntryId(next.id);
-    setShowAnswer(false);
     setFillAnswer("");
-    setFeedback(null);
+    setResultCard(null);
+    setPendingSessionComplete(false);
     setGameMode(GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)]);
   };
 
   const handleReview = (isCorrect: boolean) => {
     if (!activeEntry) {
-      return false;
+      return;
     }
     const nextReviewed = sessionStats.reviewed + 1;
     const nextCorrect = sessionStats.correct + (isCorrect ? 1 : 0);
@@ -119,23 +119,10 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       reviewed: nextReviewed,
       correct: nextCorrect,
     });
-    setFeedback(isCorrect ? "Nice! Marked as correct." : "No worries—let's try again.");
-    setLastAnswer({ entry: activeEntry, isCorrect });
+    setResultCard({ entry: activeEntry, isCorrect });
 
     if (nextReviewed >= SESSION_WORD_LIMIT) {
-      setSessionActive(false);
-      setSessionComplete(true);
-      setSessionNote("Session complete! Great work today.");
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleFlashcardAction = (isCorrect: boolean) => {
-    const shouldContinue = handleReview(isCorrect);
-    if (shouldContinue) {
-      pickNextEntry(activeEntry?.id);
+      setPendingSessionComplete(true);
     }
   };
 
@@ -144,10 +131,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       return;
     }
     const isCorrect = selected === activeEntry.english;
-    const shouldContinue = handleReview(isCorrect);
-    if (shouldContinue) {
-      pickNextEntry(activeEntry.id);
-    }
+    handleReview(isCorrect);
   };
 
   const handleFillSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -157,10 +141,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     }
     const normalized = fillAnswer.trim().toLowerCase();
     const isCorrect = normalized === activeEntry.german.trim().toLowerCase();
-    const shouldContinue = handleReview(isCorrect);
-    if (shouldContinue) {
-      pickNextEntry(activeEntry.id);
-    }
+    handleReview(isCorrect);
   };
 
   const multipleChoiceOptions = useMemo(() => {
@@ -175,11 +156,11 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
 
   const handleStartSession = () => {
     setSessionStats({ reviewed: 0, correct: 0 });
-    setFeedback(null);
     setSessionActive(true);
     setSessionComplete(false);
     setSessionNote(null);
-    setLastAnswer(null);
+    setResultCard(null);
+    setPendingSessionComplete(false);
     pickNextEntry(activeEntry?.id);
   };
 
@@ -187,9 +168,69 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setSessionActive(false);
     setSessionComplete(true);
     setSessionNote(note);
-    setShowAnswer(false);
     setFillAnswer("");
-    setFeedback(null);
+    setResultCard(null);
+    setPendingSessionComplete(false);
+  };
+
+  useEffect(() => {
+    if (!activeEntry || gameMode !== "letter-select") {
+      setLetterTiles([]);
+      setLetterProgress([]);
+      return;
+    }
+    const target = Array.from(activeEntry.german.replace(/[^\p{L}]/gu, ""));
+    setLetterTiles(shuffle(target).map((value, index) => ({ id: index, value, used: false })));
+    setLetterProgress([]);
+  }, [activeEntry, gameMode]);
+
+  const targetLetters = useMemo(() => {
+    if (!activeEntry) {
+      return [];
+    }
+    return Array.from(activeEntry.german.replace(/[^\p{L}]/gu, ""));
+  }, [activeEntry]);
+
+  const handleLetterPick = (tile: LetterTile) => {
+    if (!activeEntry || tile.used || resultCard) {
+      return;
+    }
+    const expectedLetter = targetLetters[letterProgress.length];
+    if (!expectedLetter) {
+      return;
+    }
+    if (tile.value !== expectedLetter) {
+      setLetterTiles((current) =>
+        current.map((item) => (item.id === tile.id ? { ...item, used: true } : item)),
+      );
+      handleReview(false);
+      return;
+    }
+
+    setLetterTiles((current) =>
+      current.map((item) => (item.id === tile.id ? { ...item, used: true } : item)),
+    );
+    setLetterProgress((current) => {
+      const next = [...current, tile.value];
+      if (next.length === targetLetters.length) {
+        handleReview(true);
+      }
+      return next;
+    });
+  };
+
+  const handleContinue = () => {
+    if (pendingSessionComplete) {
+      setSessionActive(false);
+      setSessionComplete(true);
+      setSessionNote("Session complete! Great work today.");
+      setResultCard(null);
+      setPendingSessionComplete(false);
+      return;
+    }
+
+    setResultCard(null);
+    pickNextEntry(activeEntry?.id);
   };
 
   if (entries.length === 0) {
@@ -200,8 +241,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       </section>
     );
   }
-
-  const progress = progressForEntry(activeEntry);
 
   return (
     <section className="learning-screen">
@@ -261,37 +300,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       )}
 
       <div className="learning-session">
-        <div className="learning-session__card">
-          <div className="learning-session__media">
-            {activeEntry?.imageUrl ? (
-              <img src={activeEntry.imageUrl} alt={`Illustration for ${activeEntry.german}`} />
-            ) : (
-              <div className="learning-session__media-placeholder" aria-hidden="true">
-                Illustration pending
-              </div>
-            )}
-          </div>
-          <div className="learning-session__content">
-            <p className="learning-session__label">Active card</p>
-            <h3 className="learning-session__word">
-              {activeEntry ? `${activeEntry.article ? `${activeEntry.article} ` : ""}${activeEntry.german}` : "—"}
-            </h3>
-            <p className="learning-session__translation">
-              {activeEntry ? activeEntry.english : "Select a word to begin."}
-            </p>
-            {activeEntry?.audioUrl ? (
-              <div className="learning-session__audio">
-                <span>Pronunciation</span>
-                <audio controls src={activeEntry.audioUrl} />
-              </div>
-            ) : null}
-            <div className="learning-session__meta">
-              <span>{progress ? `${progress.strength}% strength` : "New word"}</span>
-              <span>{progress?.correctStreak ?? 0} streak</span>
-            </div>
-          </div>
-        </div>
-
         {!sessionActive ? (
           <div className="learning-session__start">
             <p>{sessionNote ?? "Ready to practice? Start a focused session and answer each prompt."}</p>
@@ -300,7 +308,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 {sessionComplete ? "Start new session" : "Start session"}
               </button>
               <button type="button" className="text-button" onClick={() => pickNextEntry(activeEntry?.id)}>
-                Shuffle card
+                Mix up words
               </button>
             </div>
           </div>
@@ -310,12 +318,11 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
               <div>
                 <p className="learning-session__game-label">Game</p>
                 <h3>
-                  {gameMode === "flashcards" && "Flashcard"}
                   {gameMode === "multiple-choice" && "Multiple choice"}
                   {gameMode === "fill-blank" && "Write the word"}
+                  {gameMode === "letter-select" && "Build the word"}
                 </h3>
               </div>
-              {feedback ? <span className="learning-screen__feedback">{feedback}</span> : null}
             </div>
             <div className="learning-session__session-meta">
               <p>
@@ -326,28 +333,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 Skip
               </button>
             </div>
-
-            {gameMode === "flashcards" && activeEntry ? (
-              <div className="game-card game-card--compact">
-                <p className="game-card__prompt">Tap to reveal the translation.</p>
-                <button
-                  type="button"
-                  className="flashcard"
-                  onClick={() => setShowAnswer((prev) => !prev)}
-                >
-                  <span>{activeEntry.article ? `${activeEntry.article} ` : ""}{activeEntry.german}</span>
-                  {showAnswer ? <span className="flashcard__answer">{activeEntry.english}</span> : null}
-                </button>
-                <div className="game-card__actions">
-                  <button type="button" className="outline-button" onClick={() => handleFlashcardAction(false)}>
-                    Needs practice
-                  </button>
-                  <button type="button" className="primary-button" onClick={() => handleFlashcardAction(true)}>
-                    I got it
-                  </button>
-                </div>
-              </div>
-            ) : null}
 
             {gameMode === "multiple-choice" && activeEntry ? (
               <div className="game-card game-card--compact">
@@ -389,40 +374,81 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
               </div>
             ) : null}
 
-            {lastAnswer ? (
-              <div
-                className={`learning-session__result ${
-                  lastAnswer.isCorrect ? "learning-session__result--correct" : "learning-session__result--incorrect"
-                }`}
-              >
-                <div className="learning-session__result-media">
-                  {lastAnswer.entry.imageUrl ? (
-                    <img
-                      src={lastAnswer.entry.imageUrl}
-                      alt={`Illustration for ${lastAnswer.entry.german}`}
-                    />
-                  ) : (
-                    <div className="learning-session__media-placeholder" aria-hidden="true">
-                      Illustration pending
-                    </div>
-                  )}
+            {gameMode === "letter-select" && activeEntry ? (
+              <div className="game-card game-card--compact">
+                <p className="game-card__prompt">Select each letter in order to build the word.</p>
+                <div className="letter-sequence">
+                  {targetLetters.map((letter, index) => (
+                    <span
+                      key={`${letter}-${index}`}
+                      className={`letter-slot ${index < letterProgress.length ? "letter-slot--filled" : ""}`}
+                    >
+                      {index < letterProgress.length ? letter : "•"}
+                    </span>
+                  ))}
                 </div>
-                <div>
-                  <p className="learning-session__label">Last answer</p>
-                  <h4>
-                    {lastAnswer.entry.article ? `${lastAnswer.entry.article} ` : ""}
-                    {lastAnswer.entry.german}
-                  </h4>
-                  <p className="learning-session__translation">{lastAnswer.entry.english}</p>
-                  {lastAnswer.entry.audioUrl ? (
-                    <audio className="learning-session__result-audio" controls src={lastAnswer.entry.audioUrl} />
-                  ) : null}
+                <div className="letter-grid">
+                  {letterTiles.map((tile) => (
+                    <button
+                      key={tile.id}
+                      type="button"
+                      className="letter-button"
+                      onClick={() => handleLetterPick(tile)}
+                      disabled={tile.used}
+                    >
+                      {tile.value}
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : null}
           </div>
         )}
       </div>
+
+      {resultCard ? (
+        <div className="learning-result">
+          <div className="learning-result__card">
+            <div className="learning-result__media">
+              {resultCard.entry.imageUrl ? (
+                <img src={resultCard.entry.imageUrl} alt={`Illustration for ${resultCard.entry.german}`} />
+              ) : (
+                <div className="learning-session__media-placeholder" aria-hidden="true">
+                  Illustration pending
+                </div>
+              )}
+            </div>
+            <div className="learning-result__content">
+              <p className="learning-session__label">
+                {resultCard.isCorrect ? "Nice work!" : "Keep practicing"}
+              </p>
+              <h3 className="learning-result__word">
+                {resultCard.entry.article ? `${resultCard.entry.article} ` : ""}
+                {resultCard.entry.german}
+              </h3>
+              <p className="learning-result__translation">{resultCard.entry.english}</p>
+              <div className="learning-result__examples">
+                <div>
+                  <p className="learning-result__example-label">Example</p>
+                  <p>{resultCard.entry.exampleDe}</p>
+                  <p className="learning-result__example-translation">{resultCard.entry.exampleEn}</p>
+                </div>
+              </div>
+              {resultCard.entry.audioUrl ? (
+                <div className="learning-result__audio">
+                  <span>Pronunciation</span>
+                  <audio controls src={resultCard.entry.audioUrl} />
+                </div>
+              ) : null}
+              <div className="learning-result__actions">
+                <button type="button" className="primary-button" onClick={handleContinue}>
+                  {pendingSessionComplete ? "Finish session" : "Continue"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 };

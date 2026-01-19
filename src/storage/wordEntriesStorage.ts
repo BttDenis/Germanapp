@@ -38,8 +38,60 @@ const isQuotaError = (error: unknown) => {
   return name === "QuotaExceededError" || name === "NS_ERROR_DOM_QUOTA_REACHED";
 };
 
-const persistEntries = (entries: WordEntry[]) => {
-  storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify(entries));
+const isDataUrl = (value?: string | null) => Boolean(value && value.startsWith("data:"));
+
+const stripEntryMedia = (entry: WordEntry): WordEntry => {
+  if (!isDataUrl(entry.imageUrl) && !isDataUrl(entry.audioUrl)) {
+    return entry;
+  }
+  return {
+    ...entry,
+    imageUrl: isDataUrl(entry.imageUrl) ? null : entry.imageUrl ?? null,
+    audioUrl: isDataUrl(entry.audioUrl) ? null : entry.audioUrl ?? null,
+  };
+};
+
+const stripEntriesMedia = (entries: WordEntry[]) => entries.map((entry) => stripEntryMedia(entry));
+
+const persistEntries = (entries: WordEntry[]): WordEntry[] => {
+  try {
+    storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify(entries));
+    return entries;
+  } catch (error) {
+    if (!isQuotaError(error)) {
+      throw error;
+    }
+  }
+
+  const strippedEntries = stripEntriesMedia(entries);
+  try {
+    storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify(strippedEntries));
+    return strippedEntries;
+  } catch (error) {
+    if (!isQuotaError(error)) {
+      throw error;
+    }
+  }
+
+  const trimmed = [...strippedEntries];
+  while (trimmed.length > 0) {
+    trimmed.pop();
+    try {
+      storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify(trimmed));
+      return trimmed;
+    } catch (error) {
+      if (!isQuotaError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (storage.removeItem) {
+    storage.removeItem(WORD_ENTRIES_STORAGE_KEY);
+  } else {
+    storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify([]));
+  }
+  return [];
 };
 
 export const getWordEntries = (): WordEntry[] => {
@@ -47,7 +99,7 @@ export const getWordEntries = (): WordEntry[] => {
 };
 
 export const setWordEntries = (entries: WordEntry[]) => {
-  persistEntries(entries);
+  return persistEntries(entries);
 };
 
 const normalizeImportedEntry = (entry: Partial<WordEntry>): WordEntry | null => {
@@ -88,8 +140,8 @@ export const mergeWordEntries = (incoming: Partial<WordEntry>[]) => {
   });
 
   const merged = [...uniqueIncoming, ...existingEntries];
-  setWordEntries(merged);
-  return { added: uniqueIncoming.length, total: merged.length };
+  const saved = setWordEntries(merged);
+  return { added: uniqueIncoming.length, total: saved.length };
 };
 
 export const saveWordEntry = (input: WordEntryInput): WordEntry => {
@@ -98,8 +150,8 @@ export const saveWordEntry = (input: WordEntryInput): WordEntry => {
     ...input,
     id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   };
-  persistEntries([nextEntry, ...entries]);
-  return nextEntry;
+  const saved = persistEntries([nextEntry, ...entries]);
+  return saved.find((entry) => entry.id === nextEntry.id) ?? nextEntry;
 };
 
 export const saveWordEntries = (inputs: WordEntryInput[]): WordEntry[] => {
@@ -109,8 +161,9 @@ export const saveWordEntries = (inputs: WordEntryInput[]): WordEntry[] => {
     ...input,
     id: `entry-${timestamp}-${index}-${Math.random().toString(36).slice(2, 8)}`,
   }));
-  persistEntries([...nextEntries, ...entries]);
-  return nextEntries;
+  const saved = persistEntries([...nextEntries, ...entries]);
+  const savedById = new Map(saved.map((entry) => [entry.id, entry]));
+  return nextEntries.map((entry) => savedById.get(entry.id) ?? entry);
 };
 
 export const clearWordEntries = () => {

@@ -1,24 +1,25 @@
 import { commonWords } from "../data/commonWords";
-import { WordEntryInput } from "../types/wordEntry";
+import { normalizeGerman } from "./normalizeGerman";
 
 export const COMMON_WORD_BATCH_SIZE = 10;
 
-export const buildCommonWordEntries = (
-  limit: number = COMMON_WORD_BATCH_SIZE
-): WordEntryInput[] => {
-  const baseTime = new Date().toISOString();
-  return commonWords.slice(0, limit).map((word) => ({
-    german: word.german,
-    english: word.english,
-    partOfSpeech: word.partOfSpeech,
-    article: word.article,
-    exampleDe: `Ich lerne das Wort "${word.german}".`,
-    exampleEn: `I am learning the word "${word.english}".`,
-    notes: "Seeded from common words list.",
-    imageUrl: null,
-    audioUrl: null,
-    source: "manual" as const,
-    llmGeneratedAt: baseTime,
-    llmModel: "common-words-seed",
-  }));
+export const pickRandomCommonWords = (
+  limit: number = COMMON_WORD_BATCH_SIZE,
+  excludedGerman: Set<string> = new Set()
+) => {
+  const available = commonWords.filter(
+    (word) => !excludedGerman.has(normalizeGerman(word.german).toLowerCase())
+  );
+
+  if (available.length <= limit) {
+    return { selected: available, availableCount: available.length };
+  }
+
+  const shuffled = [...available];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return { selected: shuffled.slice(0, limit), availableCount: available.length };
 };

@@ -3,7 +3,14 @@ import { useEffect, useState } from "react";
 import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
-import { WORD_ENTRIES_STORAGE_KEY, clearWordEntries, getWordEntries } from "./storage/wordEntriesStorage";
+import { generateLlmCard } from "./services/llmCardGenerator";
+import {
+  WORD_ENTRIES_STORAGE_KEY,
+  clearWordEntries,
+  deleteWordEntry,
+  getWordEntries,
+  updateWordEntry,
+} from "./storage/wordEntriesStorage";
 import { WordEntry } from "./types/wordEntry";
 import { scheduleRemoteSync, syncFromRemote } from "./services/wordEntriesSync";
 import "./App.css";
@@ -62,6 +69,31 @@ export const App = () => {
     setEntries([]);
   };
 
+  const handleDeleteEntry = (entryId: string) => {
+    const saved = deleteWordEntry(entryId);
+    setEntries(saved);
+  };
+
+  const handleRegenerateEntry = async (entry: WordEntry) => {
+    const generated = await generateLlmCard({
+      inputLanguage: "de",
+      userText: entry.german,
+      regenerate: true,
+    });
+    const updatedEntry: WordEntry = {
+      ...entry,
+      ...generated.draft,
+      notes: generated.draft.notes ?? "",
+      imageUrl: entry.imageUrl ?? null,
+      audioUrl: entry.audioUrl ?? null,
+      source: "llm",
+      llmGeneratedAt: generated.llmGeneratedAt,
+      llmModel: generated.llmModel,
+    };
+    const saved = updateWordEntry(updatedEntry);
+    setEntries(saved);
+  };
+
   return (
     <main className="app">
       <header className="app__header">
@@ -101,6 +133,8 @@ export const App = () => {
         <DictionaryScreen
           entries={entries}
           onClearEntries={handleClearEntries}
+          onDeleteEntry={handleDeleteEntry}
+          onRegenerateEntry={handleRegenerateEntry}
         />
       )}
     </main>

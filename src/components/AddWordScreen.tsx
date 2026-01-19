@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 
+import { commonWords } from "../data/commonWords";
 import { generateLlmCard } from "../services/llmCardGenerator";
 import { generateLlmImage } from "../services/llmImageGenerator";
 import { generateLlmVoice } from "../services/llmVoiceGenerator";
-import { getEntryKey, getWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
+import { getWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
 import { WordEntry, WordEntryDraft, WordEntryInput } from "../types/wordEntry";
-import { buildCommonWordEntries, COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
+import { pickRandomCommonWords, COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
+import { normalizeGerman } from "../utils/normalizeGerman";
 import "./AddWordScreen.css";
 
 const emptyDraft: WordEntryDraft = {
@@ -131,10 +133,14 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
     setBatchError(null);
 
     const savedEntries = getWordEntries();
-    const existingKeys = new Set(savedEntries.map((entry) => getEntryKey(entry)));
-    const allEntries = buildCommonWordEntries();
-    const baseEntries = allEntries.filter((entry) => !existingKeys.has(getEntryKey(entry)));
-    const skippedCount = allEntries.length - baseEntries.length;
+    const existingGerman = new Set(
+      savedEntries.map((entry) => normalizeGerman(entry.german).toLowerCase())
+    );
+    const { selected: baseEntries, availableCount } = pickRandomCommonWords(
+      COMMON_WORD_BATCH_SIZE,
+      existingGerman
+    );
+    const skippedCount = Math.max(commonWords.length - availableCount, 0);
     if (baseEntries.length === 0) {
       setBatchMessage("All common words are already in your dictionary.");
       setIsBatchGenerating(false);
@@ -155,23 +161,30 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
           currentWord: baseEntry.german,
         });
 
+        const generated = await generateLlmCard({
+          inputLanguage: "de",
+          userText: baseEntry.german,
+        });
+
         const [imageResult, voiceResult] = await Promise.allSettled([
-          generateLlmImage({ german: baseEntry.german }),
-          generateLlmVoice({ german: baseEntry.german }),
+          generateLlmImage({ german: generated.draft.german }),
+          generateLlmVoice({ german: generated.draft.german }),
         ]);
 
         const nextEntry: WordEntryInput = {
-          ...baseEntry,
-          imageUrl: baseEntry.imageUrl ?? null,
-          audioUrl: baseEntry.audioUrl ?? null,
+          ...generated.draft,
+          imageUrl: null,
+          audioUrl: null,
           source: "llm" as const,
+          llmGeneratedAt: generated.llmGeneratedAt,
+          llmModel: generated.llmModel,
         };
 
         if (imageResult.status === "fulfilled") {
           nextEntry.imageUrl = imageResult.value.imageUrl;
         } else {
           mediaFailures.push(
-            `Image for "${baseEntry.german}" failed: ${
+            `Image for "${generated.draft.german}" failed: ${
               imageResult.reason instanceof Error ? imageResult.reason.message : "generation failed"
             }.`
           );
@@ -181,7 +194,7 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
           nextEntry.audioUrl = voiceResult.value.audioUrl;
         } else {
           mediaFailures.push(
-            `Audio for "${baseEntry.german}" failed: ${
+            `Audio for "${generated.draft.german}" failed: ${
               voiceResult.reason instanceof Error ? voiceResult.reason.message : "generation failed"
             }.`
           );
@@ -193,7 +206,7 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
         setBatchProgress({
           completed: index + 1,
           total: baseEntries.length,
-          currentWord: baseEntry.german,
+          currentWord: generated.draft.german,
         });
       }
 

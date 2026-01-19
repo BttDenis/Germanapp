@@ -4,7 +4,7 @@ import { generateLlmCard } from "../services/llmCardGenerator";
 import { generateLlmImage } from "../services/llmImageGenerator";
 import { generateLlmVoice } from "../services/llmVoiceGenerator";
 import { saveWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
-import { WordEntry, WordEntryDraft } from "../types/wordEntry";
+import { WordEntry, WordEntryDraft, WordEntryInput } from "../types/wordEntry";
 import { buildCommonWordEntries, COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
 import "./AddWordScreen.css";
 
@@ -17,6 +17,7 @@ const emptyDraft: WordEntryDraft = {
   exampleEn: "",
   notes: "",
   imageUrl: null,
+  audioUrl: null,
 };
 
 type AddWordScreenProps = {
@@ -41,10 +42,17 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
   const [error, setError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{
+    completed: number;
+    total: number;
+    currentWord: string;
+  } | null>(null);
 
-  const canGenerate = inputText.trim().length > 0 && !isGenerating;
+  const canGenerate = inputText.trim().length > 0 && !isGenerating && !isBatchGenerating;
   const needsApiKey =
     error?.includes("LLM API key not configured") || mediaError?.includes("LLM API key not configured");
 
@@ -103,6 +111,7 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
     const payload = {
       ...draft,
       imageUrl: imageState?.url ?? null,
+      audioUrl: audioState?.url ?? null,
       source: llmMeta ? ("llm" as const) : ("manual" as const),
       llmGeneratedAt: llmMeta?.generatedAt ?? null,
       llmModel: llmMeta?.model ?? null,
@@ -114,11 +123,85 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
     setBatchMessage(null);
   };
 
-  const handleBatchGenerate = () => {
-    const savedEntries = saveWordEntries(buildCommonWordEntries());
+  const handleBatchGenerate = async () => {
+    setIsBatchGenerating(true);
     setSaveMessage(null);
-    setBatchMessage(`Added ${savedEntries.length} common words to your dictionary.`);
-    savedEntries.forEach((entry) => onEntrySaved?.(entry));
+    setBatchMessage(null);
+    setBatchError(null);
+
+    const baseEntries = buildCommonWordEntries();
+    if (baseEntries.length === 0) {
+      setIsBatchGenerating(false);
+      return;
+    }
+
+    setBatchProgress({ completed: 0, total: baseEntries.length, currentWord: baseEntries[0].german });
+
+    const enrichedEntries: WordEntryInput[] = [];
+    const mediaFailures: string[] = [];
+
+    try {
+      for (let index = 0; index < baseEntries.length; index += 1) {
+        const baseEntry = baseEntries[index];
+        setBatchProgress({
+          completed: index,
+          total: baseEntries.length,
+          currentWord: baseEntry.german,
+        });
+
+        const [imageResult, voiceResult] = await Promise.allSettled([
+          generateLlmImage({ german: baseEntry.german }),
+          generateLlmVoice({ german: baseEntry.german }),
+        ]);
+
+        const nextEntry: WordEntryInput = {
+          ...baseEntry,
+          imageUrl: baseEntry.imageUrl ?? null,
+          audioUrl: baseEntry.audioUrl ?? null,
+          source: "llm" as const,
+        };
+
+        if (imageResult.status === "fulfilled") {
+          nextEntry.imageUrl = imageResult.value.imageUrl;
+        } else {
+          mediaFailures.push(
+            `Image for "${baseEntry.german}" failed: ${
+              imageResult.reason instanceof Error ? imageResult.reason.message : "generation failed"
+            }.`
+          );
+        }
+
+        if (voiceResult.status === "fulfilled") {
+          nextEntry.audioUrl = voiceResult.value.audioUrl;
+        } else {
+          mediaFailures.push(
+            `Audio for "${baseEntry.german}" failed: ${
+              voiceResult.reason instanceof Error ? voiceResult.reason.message : "generation failed"
+            }.`
+          );
+        }
+
+        enrichedEntries.push(nextEntry);
+        setBatchProgress({
+          completed: index + 1,
+          total: baseEntries.length,
+          currentWord: baseEntry.german,
+        });
+      }
+
+      const savedEntries = saveWordEntries(enrichedEntries);
+      setBatchMessage(`Added ${savedEntries.length} common words with images and audio.`);
+      savedEntries.forEach((entry) => onEntrySaved?.(entry));
+
+      if (mediaFailures.length > 0) {
+        setBatchError(mediaFailures.join(" "));
+      }
+    } catch (err) {
+      setBatchError(err instanceof Error ? err.message : "Batch generation failed.");
+    } finally {
+      setIsBatchGenerating(false);
+      setBatchProgress(null);
+    }
   };
 
   const notesValue = useMemo(() => draft.notes ?? "", [draft.notes]);
@@ -126,7 +209,7 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
 
   useEffect(() => {
     return () => {
-      if (audioState?.url) {
+      if (audioState?.url?.startsWith("blob:")) {
         URL.revokeObjectURL(audioState.url);
       }
     };
@@ -182,11 +265,29 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
               Add a ready-made set of the most common words to your dictionary in one click.
             </p>
           </div>
-          <button type="button" className="primary" onClick={handleBatchGenerate}>
-            Add {COMMON_WORD_BATCH_SIZE} words
+          <button type="button" className="primary" onClick={handleBatchGenerate} disabled={isBatchGenerating}>
+            {isBatchGenerating ? "Generating..." : `Add ${COMMON_WORD_BATCH_SIZE} words`}
           </button>
         </div>
+        {batchProgress ? (
+          <div className="add-word-screen__batch-progress" role="status" aria-live="polite">
+            <div className="add-word-screen__progressbar">
+              <span
+                style={{
+                  width: `${Math.min((batchProgress.completed / batchProgress.total) * 100, 100)}%`,
+                }}
+              />
+            </div>
+            <div className="add-word-screen__progress-meta">
+              <span>
+                Generating {batchProgress.completed}/{batchProgress.total}
+              </span>
+              <span>Working on "{batchProgress.currentWord}"</span>
+            </div>
+          </div>
+        ) : null}
         {batchMessage ? <p className="add-word-screen__success">{batchMessage}</p> : null}
+        {batchError ? <p className="add-word-screen__error" role="alert">{batchError}</p> : null}
       </section>
 
       {hasGeneratedCard ? (

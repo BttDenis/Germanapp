@@ -51,20 +51,6 @@
   font-weight: 600;
 }
 
-.dictionary-screen__seed {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid #1d4ed8;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.dictionary-screen__seed:hover {
-  background: #dbeafe;
-}
-
 .dictionary-screen__clear {
   padding: 8px 14px;
   border-radius: 999px;
@@ -133,13 +119,6 @@
   border-radius: 12px;
   color: #334155;
   font-size: 0.9rem;
-}
-
-.dictionary-screen__empty-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
 }
 
 @media (max-width: 720px) {

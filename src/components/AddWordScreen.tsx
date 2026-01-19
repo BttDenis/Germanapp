@@ -5,7 +5,7 @@ import { generateLlmImage } from "../services/llmImageGenerator";
 import { generateLlmVoice } from "../services/llmVoiceGenerator";
 import { saveWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
 import { WordEntry, WordEntryDraft } from "../types/wordEntry";
-import { commonWords } from "../data/commonWords";
+import { buildCommonWordEntries, COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
 import "./AddWordScreen.css";
 
 const emptyDraft: WordEntryDraft = {
@@ -115,22 +115,7 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
   };
 
   const handleBatchGenerate = () => {
-    const baseTime = new Date().toISOString();
-    const batchEntries = commonWords.map((word) => ({
-      german: word.german,
-      english: word.english,
-      partOfSpeech: word.partOfSpeech,
-      article: word.article,
-      exampleDe: `Ich lerne das Wort \"${word.german}\".`,
-      exampleEn: `I am learning the word \"${word.english}\".`,
-      notes: "Seeded from common words list.",
-      imageUrl: null,
-      source: "manual" as const,
-      llmGeneratedAt: baseTime,
-      llmModel: "common-words-seed",
-    }));
-
-    const savedEntries = saveWordEntries(batchEntries);
+    const savedEntries = saveWordEntries(buildCommonWordEntries());
     setSaveMessage(null);
     setBatchMessage(`Added ${savedEntries.length} common words to your dictionary.`);
     savedEntries.forEach((entry) => onEntrySaved?.(entry));
@@ -192,13 +177,13 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
         <div className="add-word-screen__batch">
           <div>
             <p className="add-word-screen__eyebrow">Quick start</p>
-            <h3>Generate 100 common words</h3>
+            <h3>Generate {COMMON_WORD_BATCH_SIZE} common words</h3>
             <p className="add-word-screen__subhead">
               Add a ready-made set of the most common words to your dictionary in one click.
             </p>
           </div>
           <button type="button" className="primary" onClick={handleBatchGenerate}>
-            Add 100 words
+            Add {COMMON_WORD_BATCH_SIZE} words
           </button>
         </div>
         {batchMessage ? <p className="add-word-screen__success">{batchMessage}</p> : null}

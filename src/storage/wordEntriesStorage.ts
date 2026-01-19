@@ -39,28 +39,7 @@ const isQuotaError = (error: unknown) => {
 };
 
 const persistEntries = (entries: WordEntry[]) => {
-  const payload = JSON.stringify(entries);
-  try {
-    storage.setItem(WORD_ENTRIES_STORAGE_KEY, payload);
-    return;
-  } catch (error) {
-    if (!isQuotaError(error)) {
-      throw error;
-    }
-  }
-
-  const trimmedEntries = [...entries];
-  while (trimmedEntries.length > 0) {
-    trimmedEntries.pop();
-    try {
-      storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify(trimmedEntries));
-      return;
-    } catch (error) {
-      if (!isQuotaError(error)) {
-        throw error;
-      }
-    }
-  }
+  storage.setItem(WORD_ENTRIES_STORAGE_KEY, JSON.stringify(entries));
 };
 
 export const getWordEntries = (): WordEntry[] => {

@@ -102,6 +102,18 @@ export const setWordEntries = (entries: WordEntry[]) => {
   return persistEntries(entries);
 };
 
+export const updateWordEntry = (nextEntry: WordEntry) => {
+  const entries = getWordEntries();
+  const nextEntries = entries.map((entry) => (entry.id === nextEntry.id ? nextEntry : entry));
+  return persistEntries(nextEntries);
+};
+
+export const deleteWordEntry = (entryId: string) => {
+  const entries = getWordEntries();
+  const nextEntries = entries.filter((entry) => entry.id !== entryId);
+  return persistEntries(nextEntries);
+};
+
 const normalizeImportedEntry = (entry: Partial<WordEntry>): WordEntry | null => {
   if (!entry.german || !entry.english) {
     return null;

@@ -46,3 +46,38 @@ VITE_LLM_API_KEY=your-key-here
 The app reads `VITE_LLM_API_KEY` in the browser build for card, image, and voice generation.
 For server-side usage, prefer a proxy and use `LLM_API_KEY`/`OPENAI_API_KEY` on the server
 environment instead.
+
+### Sync words across devices
+
+The app can sync the dictionary to a shared server endpoint so multiple devices see the same
+word list. The client already knows how to sync if you provide a URL and optional token.
+
+1. Start the included sync server (stores entries in `./data/word-entries.json`):
+
+   ```bash
+   npm run word-sync-server
+   ```
+
+   If your npm client doesn't pick up the script, you can also run:
+
+   ```bash
+   npm run word-sync
+   # or
+   node ./scripts/word-sync-server.mjs
+   ```
+
+   Optional environment variables:
+
+   - `WORD_SYNC_PORT` (default `8787`)
+   - `WORD_SYNC_TOKEN` (set to require `Authorization: Bearer <token>`)
+   - `WORD_SYNC_DATA_PATH` (default `./data/word-entries.json`)
+
+2. Add the sync settings to your `.env` file for the Vite app:
+
+   ```bash
+   VITE_WORD_SYNC_URL=http://<your-ip>:8787/words
+   VITE_WORD_SYNC_TOKEN=your-shared-token
+   ```
+
+3. Run the app (`npm run dev`) on both devices. The dictionary will merge and push entries
+   to the shared server so laptop and phone stay aligned.

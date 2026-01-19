@@ -117,3 +117,19 @@
   color: #334155;
   font-size: 0.9rem;
 }
+
+@media (max-width: 720px) {
+  .dictionary-screen__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dictionary-screen__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dictionary-screen__list {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}

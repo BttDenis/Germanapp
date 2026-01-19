@@ -58,14 +58,6 @@ word list. The client already knows how to sync if you provide a URL and optiona
    npm run word-sync-server
    ```
 
-   If your npm client doesn't pick up the script, you can also run:
-
-   ```bash
-   npm run word-sync
-   # or
-   node ./scripts/word-sync-server.mjs
-   ```
-
    Optional environment variables:
 
    - `WORD_SYNC_PORT` (default `8787`)

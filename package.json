@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "word-sync-server": "node ./scripts/word-sync-server.mjs",
-    "word-sync": "node ./scripts/word-sync-server.mjs"
+    "word-sync-server": "node ./scripts/word-sync-server.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

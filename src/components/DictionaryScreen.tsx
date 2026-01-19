@@ -1,31 +1,20 @@
 import { WordEntry } from "../types/wordEntry";
-import { COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
 import "./DictionaryScreen.css";
 
 type DictionaryScreenProps = {
   entries: WordEntry[];
   onClearEntries?: () => void;
-  onAddCommonWords?: () => void;
 };
 
 export const DictionaryScreen = ({
   entries,
   onClearEntries,
-  onAddCommonWords,
 }: DictionaryScreenProps) => {
   if (entries.length === 0) {
     return (
       <section className="dictionary-screen dictionary-screen--empty">
         <h2>Dictionary</h2>
         <p>Your saved words will appear here once you add them.</p>
-        {onAddCommonWords ? (
-          <div className="dictionary-screen__empty-actions">
-            <p>Start faster with the most common words.</p>
-            <button type="button" className="primary" onClick={onAddCommonWords}>
-              Add {COMMON_WORD_BATCH_SIZE} common words
-            </button>
-          </div>
-        ) : null}
       </section>
     );
   }
@@ -42,11 +31,6 @@ export const DictionaryScreen = ({
         </div>
         <div className="dictionary-screen__actions">
           <span className="dictionary-screen__count">{entries.length} total</span>
-          {onAddCommonWords ? (
-            <button type="button" className="dictionary-screen__seed" onClick={onAddCommonWords}>
-              Add {COMMON_WORD_BATCH_SIZE} common words
-            </button>
-          ) : null}
           {onClearEntries ? (
             <button
               type="button"

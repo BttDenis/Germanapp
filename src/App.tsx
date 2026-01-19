@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
-import { clearWordEntries, getWordEntries, saveWordEntries } from "./storage/wordEntriesStorage";
+import { WORD_ENTRIES_STORAGE_KEY, clearWordEntries, getWordEntries } from "./storage/wordEntriesStorage";
 import { WordEntry } from "./types/wordEntry";
-import { buildCommonWordEntries } from "./utils/commonWordSeed";
+import { scheduleRemoteSync, syncFromRemote } from "./services/wordEntriesSync";
 import "./App.css";
 
 type Page = "learn" | "add" | "dictionary";
@@ -18,19 +18,48 @@ export const App = () => {
     setEntries(getWordEntries());
   }, []);
 
+  useEffect(() => {
+    const loadRemoteEntries = async () => {
+      try {
+        const result = await syncFromRemote();
+        if (result.enabled && result.added > 0) {
+          setEntries(getWordEntries());
+        }
+      } catch (error) {
+        console.error("Remote sync failed:", error);
+      }
+    };
+
+    loadRemoteEntries();
+  }, []);
+
+  useEffect(() => {
+    const handleStorageUpdate = (event: StorageEvent) => {
+      if (event.key === WORD_ENTRIES_STORAGE_KEY) {
+        setEntries(getWordEntries());
+      }
+    };
+
+    window.addEventListener("storage", handleStorageUpdate);
+    return () => window.removeEventListener("storage", handleStorageUpdate);
+  }, []);
+
+  useEffect(() => {
+    scheduleRemoteSync();
+  }, [entries]);
+
   const handleEntrySaved = (entry: WordEntry) => {
     setEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
     setCurrentPage("learn");
   };
 
+  const handleBatchEntrySaved = (entry: WordEntry) => {
+    setEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
+  };
+
   const handleClearEntries = () => {
     clearWordEntries();
     setEntries([]);
-  };
-
-  const handleAddCommonWords = () => {
-    const savedEntries = saveWordEntries(buildCommonWordEntries());
-    setEntries((prev) => [...savedEntries, ...prev]);
   };
 
   return (
@@ -67,12 +96,11 @@ export const App = () => {
       {currentPage === "learn" ? (
         <LearningScreen entries={entries} />
       ) : currentPage === "add" ? (
-        <AddWordScreen onEntrySaved={handleEntrySaved} />
+        <AddWordScreen onEntrySaved={handleEntrySaved} onBatchEntrySaved={handleBatchEntrySaved} />
       ) : (
         <DictionaryScreen
           entries={entries}
           onClearEntries={handleClearEntries}
-          onAddCommonWords={handleAddCommonWords}
         />
       )}
     </main>

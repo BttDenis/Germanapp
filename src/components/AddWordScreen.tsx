@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { generateLlmCard } from "../services/llmCardGenerator";
 import { generateLlmImage } from "../services/llmImageGenerator";
 import { generateLlmVoice } from "../services/llmVoiceGenerator";
-import { saveWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
+import { getEntryKey, getWordEntries, saveWordEntry } from "../storage/wordEntriesStorage";
 import { WordEntry, WordEntryDraft, WordEntryInput } from "../types/wordEntry";
 import { buildCommonWordEntries, COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
 import "./AddWordScreen.css";
@@ -22,9 +22,10 @@ const emptyDraft: WordEntryDraft = {
 
 type AddWordScreenProps = {
   onEntrySaved?: (entry: WordEntry) => void;
+  onBatchEntrySaved?: (entry: WordEntry) => void;
 };
 
-export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
+export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreenProps) => {
   const [inputText, setInputText] = useState("");
   const [inputLanguage, setInputLanguage] = useState<"de" | "en">("de");
   const [draft, setDraft] = useState<WordEntryDraft>(emptyDraft);
@@ -129,8 +130,13 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
     setBatchMessage(null);
     setBatchError(null);
 
-    const baseEntries = buildCommonWordEntries();
+    const savedEntries = getWordEntries();
+    const existingKeys = new Set(savedEntries.map((entry) => getEntryKey(entry)));
+    const allEntries = buildCommonWordEntries();
+    const baseEntries = allEntries.filter((entry) => !existingKeys.has(getEntryKey(entry)));
+    const skippedCount = allEntries.length - baseEntries.length;
     if (baseEntries.length === 0) {
+      setBatchMessage("All common words are already in your dictionary.");
       setIsBatchGenerating(false);
       return;
     }
@@ -182,6 +188,8 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
         }
 
         enrichedEntries.push(nextEntry);
+        const savedEntry = saveWordEntry(nextEntry);
+        onBatchEntrySaved?.(savedEntry);
         setBatchProgress({
           completed: index + 1,
           total: baseEntries.length,
@@ -189,9 +197,8 @@ export const AddWordScreen = ({ onEntrySaved }: AddWordScreenProps) => {
         });
       }
 
-      const savedEntries = saveWordEntries(enrichedEntries);
-      setBatchMessage(`Added ${savedEntries.length} common words with images and audio.`);
-      savedEntries.forEach((entry) => onEntrySaved?.(entry));
+      const skippedNote = skippedCount > 0 ? ` Skipped ${skippedCount} already saved word(s).` : "";
+      setBatchMessage(`Added ${enrichedEntries.length} common words with images and audio.${skippedNote}`);
 
       if (mediaFailures.length > 0) {
         setBatchError(mediaFailures.join(" "));

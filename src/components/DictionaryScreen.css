@@ -51,20 +51,6 @@
   font-weight: 600;
 }
 
-.dictionary-screen__seed {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid #1d4ed8;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.dictionary-screen__seed:hover {
-  background: #dbeafe;
-}
-
 .dictionary-screen__clear {
   padding: 8px 14px;
   border-radius: 999px;
@@ -135,11 +121,51 @@
   font-size: 0.9rem;
 }
 
-.dictionary-screen__empty-actions {
+.dictionary-screen__sync {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.dictionary-screen__sync h3 {
+  margin: 0 0 6px;
+}
+
+.dictionary-screen__sync p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.dictionary-screen__sync-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dictionary-screen__sync-controls textarea {
+  min-height: 120px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.dictionary-screen__sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dictionary-screen__sync-message {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 720px) {

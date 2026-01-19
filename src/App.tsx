@@ -3,9 +3,14 @@ import { useEffect, useState } from "react";
 import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
-import { clearWordEntries, getWordEntries, saveWordEntries } from "./storage/wordEntriesStorage";
+import {
+  WORD_ENTRIES_STORAGE_KEY,
+  clearWordEntries,
+  exportWordEntries,
+  getWordEntries,
+  importWordEntries,
+} from "./storage/wordEntriesStorage";
 import { WordEntry } from "./types/wordEntry";
-import { buildCommonWordEntries } from "./utils/commonWordSeed";
 import "./App.css";
 
 type Page = "learn" | "add" | "dictionary";
@@ -18,9 +23,24 @@ export const App = () => {
     setEntries(getWordEntries());
   }, []);
 
+  useEffect(() => {
+    const handleStorageUpdate = (event: StorageEvent) => {
+      if (event.key === WORD_ENTRIES_STORAGE_KEY) {
+        setEntries(getWordEntries());
+      }
+    };
+
+    window.addEventListener("storage", handleStorageUpdate);
+    return () => window.removeEventListener("storage", handleStorageUpdate);
+  }, []);
+
   const handleEntrySaved = (entry: WordEntry) => {
     setEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
     setCurrentPage("learn");
+  };
+
+  const handleBatchEntrySaved = (entry: WordEntry) => {
+    setEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
   };
 
   const handleClearEntries = () => {
@@ -28,9 +48,12 @@ export const App = () => {
     setEntries([]);
   };
 
-  const handleAddCommonWords = () => {
-    const savedEntries = saveWordEntries(buildCommonWordEntries());
-    setEntries((prev) => [...savedEntries, ...prev]);
+  const handleExportEntries = () => exportWordEntries();
+
+  const handleImportEntries = (payload: string) => {
+    const result = importWordEntries(payload);
+    setEntries(getWordEntries());
+    return result;
   };
 
   return (
@@ -67,12 +90,13 @@ export const App = () => {
       {currentPage === "learn" ? (
         <LearningScreen entries={entries} />
       ) : currentPage === "add" ? (
-        <AddWordScreen onEntrySaved={handleEntrySaved} />
+        <AddWordScreen onEntrySaved={handleEntrySaved} onBatchEntrySaved={handleBatchEntrySaved} />
       ) : (
         <DictionaryScreen
           entries={entries}
           onClearEntries={handleClearEntries}
-          onAddCommonWords={handleAddCommonWords}
+          onExportEntries={handleExportEntries}
+          onImportEntries={handleImportEntries}
         />
       )}
     </main>

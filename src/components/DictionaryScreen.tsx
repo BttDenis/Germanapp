@@ -1,31 +1,93 @@
+import { useState } from "react";
+
 import { WordEntry } from "../types/wordEntry";
-import { COMMON_WORD_BATCH_SIZE } from "../utils/commonWordSeed";
 import "./DictionaryScreen.css";
 
 type DictionaryScreenProps = {
   entries: WordEntry[];
   onClearEntries?: () => void;
-  onAddCommonWords?: () => void;
+  onExportEntries?: () => string;
+  onImportEntries?: (payload: string) => { added: number; total: number };
 };
 
 export const DictionaryScreen = ({
   entries,
   onClearEntries,
-  onAddCommonWords,
+  onExportEntries,
+  onImportEntries,
 }: DictionaryScreenProps) => {
+  const [syncCode, setSyncCode] = useState("");
+  const [syncInput, setSyncInput] = useState("");
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const handleGenerateSyncCode = () => {
+    if (!onExportEntries) {
+      return;
+    }
+    setSyncCode(onExportEntries());
+    setSyncMessage("Sync code generated. Copy it to use on another device.");
+  };
+
+  const handleCopySyncCode = async () => {
+    if (!syncCode) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(syncCode);
+      setSyncMessage("Sync code copied to clipboard.");
+    } catch {
+      setSyncMessage("Copy failed. You can manually select and copy the sync code.");
+    }
+  };
+
+  const handleImportSyncCode = () => {
+    if (!onImportEntries) {
+      return;
+    }
+    try {
+      const result = onImportEntries(syncInput);
+      setSyncMessage(`Imported ${result.added} new words. ${result.total} total in your dictionary.`);
+      setSyncInput("");
+    } catch (error) {
+      setSyncMessage(error instanceof Error ? error.message : "Import failed. Check the sync code.");
+    }
+  };
+
   if (entries.length === 0) {
     return (
       <section className="dictionary-screen dictionary-screen--empty">
         <h2>Dictionary</h2>
         <p>Your saved words will appear here once you add them.</p>
-        {onAddCommonWords ? (
-          <div className="dictionary-screen__empty-actions">
-            <p>Start faster with the most common words.</p>
-            <button type="button" className="primary" onClick={onAddCommonWords}>
-              Add {COMMON_WORD_BATCH_SIZE} common words
-            </button>
+        <div className="dictionary-screen__sync">
+          <div>
+            <h3>Sync & backup</h3>
+            <p>Generate a sync code, then paste it on another device to load the same dictionary.</p>
           </div>
-        ) : null}
+          <div className="dictionary-screen__sync-controls">
+            <textarea
+              value={syncCode}
+              readOnly
+              placeholder="Generate a sync code to copy it."
+            />
+            <div className="dictionary-screen__sync-actions">
+              <button type="button" className="primary" onClick={handleGenerateSyncCode}>
+                Generate sync code
+              </button>
+              <button type="button" className="ghost" onClick={handleCopySyncCode} disabled={!syncCode}>
+                Copy sync code
+              </button>
+            </div>
+            <textarea
+              value={syncInput}
+              onChange={(event) => setSyncInput(event.target.value)}
+              placeholder="Paste a sync code to import words."
+            />
+            <button type="button" className="ghost" onClick={handleImportSyncCode} disabled={!syncInput.trim()}>
+              Import sync code
+            </button>
+            {syncMessage ? <p className="dictionary-screen__sync-message">{syncMessage}</p> : null}
+          </div>
+        </div>
       </section>
     );
   }
@@ -42,11 +104,6 @@ export const DictionaryScreen = ({
         </div>
         <div className="dictionary-screen__actions">
           <span className="dictionary-screen__count">{entries.length} total</span>
-          {onAddCommonWords ? (
-            <button type="button" className="dictionary-screen__seed" onClick={onAddCommonWords}>
-              Add {COMMON_WORD_BATCH_SIZE} common words
-            </button>
-          ) : null}
           {onClearEntries ? (
             <button
               type="button"
@@ -80,6 +137,36 @@ export const DictionaryScreen = ({
           </article>
         ))}
       </div>
+      <section className="dictionary-screen__sync">
+        <div>
+          <h3>Sync & backup</h3>
+          <p>Generate a sync code and paste it on another device to keep your dictionary in sync.</p>
+        </div>
+        <div className="dictionary-screen__sync-controls">
+          <textarea
+            value={syncCode}
+            readOnly
+            placeholder="Generate a sync code to copy it."
+          />
+          <div className="dictionary-screen__sync-actions">
+            <button type="button" className="primary" onClick={handleGenerateSyncCode}>
+              Generate sync code
+            </button>
+            <button type="button" className="ghost" onClick={handleCopySyncCode} disabled={!syncCode}>
+              Copy sync code
+            </button>
+          </div>
+          <textarea
+            value={syncInput}
+            onChange={(event) => setSyncInput(event.target.value)}
+            placeholder="Paste a sync code to import words."
+          />
+          <button type="button" className="ghost" onClick={handleImportSyncCode} disabled={!syncInput.trim()}>
+            Import sync code
+          </button>
+          {syncMessage ? <p className="dictionary-screen__sync-message">{syncMessage}</p> : null}
+        </div>
+      </section>
     </section>
   );
 };

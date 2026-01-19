@@ -6,6 +6,7 @@ export type LlmImageGeneratorOptions = {
   apiKey?: string;
   apiUrl?: string;
   model?: string;
+  quality?: "low" | "medium" | "high";
   size?: "256x256" | "512x512" | "1024x1024";
   useCache?: boolean;
 };
@@ -17,8 +18,9 @@ export type LlmImageResult = {
   llmRawJson?: string;
 };
 
-const DEFAULT_IMAGE_MODEL = "gpt-image-1";
-const DEFAULT_IMAGE_SIZE = "512x512";
+const DEFAULT_IMAGE_MODEL = "gpt-image-1-mini";
+const DEFAULT_IMAGE_QUALITY = "low";
+const DEFAULT_IMAGE_SIZE = "1024x1024";
 const DEFAULT_API_URL = "https://api.openai.com/v1/images/generations";
 
 const buildPrompt = (german: string) =>
@@ -57,6 +59,7 @@ export const generateLlmImage = async (
     apiKey,
     apiUrl = DEFAULT_API_URL,
     model = DEFAULT_IMAGE_MODEL,
+    quality = DEFAULT_IMAGE_QUALITY,
     size = DEFAULT_IMAGE_SIZE,
     useCache = true,
   } = options;
@@ -90,6 +93,7 @@ export const generateLlmImage = async (
   const basePayload = {
     model,
     prompt: buildPrompt(german),
+    quality,
     size,
   };
 

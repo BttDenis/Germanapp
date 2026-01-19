@@ -279,6 +279,12 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
             <p className="learning-session__translation">
               {activeEntry ? activeEntry.english : "Select a word to begin."}
             </p>
+            {activeEntry?.audioUrl ? (
+              <div className="learning-session__audio">
+                <span>Pronunciation</span>
+                <audio controls src={activeEntry.audioUrl} />
+              </div>
+            ) : null}
             <div className="learning-session__meta">
               <span>{progress ? `${progress.strength}% strength` : "New word"}</span>
               <span>{progress?.correctStreak ?? 0} streak</span>
@@ -408,6 +414,9 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                     {lastAnswer.entry.german}
                   </h4>
                   <p className="learning-session__translation">{lastAnswer.entry.english}</p>
+                  {lastAnswer.entry.audioUrl ? (
+                    <audio className="learning-session__result-audio" controls src={lastAnswer.entry.audioUrl} />
+                  ) : null}
                 </div>
               </div>
             ) : null}

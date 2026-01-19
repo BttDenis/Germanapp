@@ -84,7 +84,18 @@ export const generateLlmVoice = async (
   }
 
   const blob = await response.blob();
-  const audioUrl = URL.createObjectURL(blob);
+  const audioUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Audio generation failed (invalid data URL)."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Audio generation failed (read error)."));
+    reader.readAsDataURL(blob);
+  });
 
   return {
     audioUrl,

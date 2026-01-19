@@ -126,6 +126,7 @@ const normalizeImportedEntry = (entry: Partial<WordEntry>): WordEntry | null => 
 export const mergeWordEntries = (incoming: Partial<WordEntry>[]) => {
   const existingEntries = getWordEntries();
   const existingKeys = new Set(existingEntries.map((entry) => getEntryKey(entry)));
+  const existingByKey = new Map(existingEntries.map((entry) => [getEntryKey(entry), entry]));
   const normalizedIncoming = incoming
     .map((entry) => normalizeImportedEntry(entry))
     .filter((entry): entry is WordEntry => Boolean(entry));
@@ -136,10 +137,31 @@ export const mergeWordEntries = (incoming: Partial<WordEntry>[]) => {
     if (!existingKeys.has(key)) {
       existingKeys.add(key);
       uniqueIncoming.push(entry);
+      return;
     }
+    const existingEntry = existingByKey.get(key);
+    if (!existingEntry) {
+      return;
+    }
+    const nextEntry: WordEntry = {
+      ...existingEntry,
+      article: existingEntry.article ?? entry.article ?? null,
+      exampleDe: existingEntry.exampleDe || entry.exampleDe,
+      exampleEn: existingEntry.exampleEn || entry.exampleEn,
+      notes: existingEntry.notes || entry.notes,
+      imageUrl: existingEntry.imageUrl ?? entry.imageUrl ?? null,
+      audioUrl: existingEntry.audioUrl ?? entry.audioUrl ?? null,
+      llmModel: existingEntry.llmModel ?? entry.llmModel ?? null,
+      llmGeneratedAt: existingEntry.llmGeneratedAt ?? entry.llmGeneratedAt ?? null,
+      source: existingEntry.source ?? entry.source ?? "manual",
+    };
+    existingByKey.set(key, nextEntry);
   });
 
-  const merged = [...uniqueIncoming, ...existingEntries];
+  const merged = [
+    ...uniqueIncoming,
+    ...existingEntries.map((entry) => existingByKey.get(getEntryKey(entry)) ?? entry),
+  ];
   const saved = setWordEntries(merged);
   return { added: uniqueIncoming.length, total: saved.length };
 };

@@ -97,7 +97,27 @@ export const generateLlmImage = async (
     size,
   };
 
-  let response = await requestImage({ ...basePayload, response_format: "url" });
+  const resolveDataUrl = async (url: string) => {
+    const imageResponse = await fetch(url);
+    if (!imageResponse.ok) {
+      throw new Error(`Image download failed (${imageResponse.status}).`);
+    }
+    const blob = await imageResponse.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Image conversion failed."));
+        }
+      };
+      reader.onerror = () => reject(new Error("Image conversion failed."));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  let response = await requestImage({ ...basePayload, response_format: "b64_json" });
   if (!response.ok) {
     const details = await formatErrorDetails(response);
     const shouldRetry = details.toLowerCase().includes("unknown parameter") && details.includes("response_format");
@@ -122,12 +142,19 @@ export const generateLlmImage = async (
     throw new Error("Image response missing data.");
   }
 
-  const inlineImageUrl = data.b64_json ? `data:image/png;base64,${data.b64_json}` : null;
+  let inlineImageUrl = data.b64_json ? `data:image/png;base64,${data.b64_json}` : null;
+  if (!inlineImageUrl && data.url) {
+    try {
+      inlineImageUrl = await resolveDataUrl(data.url);
+    } catch {
+      inlineImageUrl = null;
+    }
+  }
   if (!inlineImageUrl && !data.url) {
     throw new Error("Image response missing URL.");
   }
 
-  const imageUrl = data.url ?? inlineImageUrl ?? "";
+  const imageUrl = inlineImageUrl ?? data.url ?? "";
 
   const result = {
     imageUrl,

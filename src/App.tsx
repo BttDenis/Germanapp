@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
-import { clearWordEntries, getWordEntries } from "./storage/wordEntriesStorage";
+import { clearWordEntries, getWordEntries, saveWordEntries } from "./storage/wordEntriesStorage";
 import { WordEntry } from "./types/wordEntry";
+import { buildCommonWordEntries } from "./utils/commonWordSeed";
 import "./App.css";
 
 type Page = "learn" | "add" | "dictionary";
@@ -25,6 +26,11 @@ export const App = () => {
   const handleClearEntries = () => {
     clearWordEntries();
     setEntries([]);
+  };
+
+  const handleAddCommonWords = () => {
+    const savedEntries = saveWordEntries(buildCommonWordEntries());
+    setEntries((prev) => [...savedEntries, ...prev]);
   };
 
   return (
@@ -63,7 +69,11 @@ export const App = () => {
       ) : currentPage === "add" ? (
         <AddWordScreen onEntrySaved={handleEntrySaved} />
       ) : (
-        <DictionaryScreen entries={entries} onClearEntries={handleClearEntries} />
+        <DictionaryScreen
+          entries={entries}
+          onClearEntries={handleClearEntries}
+          onAddCommonWords={handleAddCommonWords}
+        />
       )}
     </main>
   );

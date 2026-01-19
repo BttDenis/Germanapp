@@ -22,6 +22,8 @@ const DEFAULT_IMAGE_MODEL = "gpt-image-1-mini";
 const DEFAULT_IMAGE_QUALITY = "low";
 const DEFAULT_IMAGE_SIZE = "1024x1024";
 const DEFAULT_API_URL = "https://api.openai.com/v1/images/generations";
+const MAX_INLINE_IMAGE_BYTES = 900_000;
+const MAX_IMAGE_DIMENSION = 768;
 
 const buildPrompt = (german: string) =>
   `Create a clean, friendly illustration that represents the German word or phrase: "${german}". Avoid text, logos, or watermarks.`;
@@ -49,6 +51,67 @@ const formatErrorDetails = async (response: Response) => {
   } catch {
     return statusLabel;
   }
+};
+
+const estimateDataUrlBytes = (dataUrl: string) => {
+  const [, base64 = ""] = dataUrl.split(",", 2);
+  return Math.floor((base64.length * 3) / 4);
+};
+
+const createOptimizedDataUrl = async (dataUrl: string): Promise<string> => {
+  if (typeof window === "undefined") {
+    return dataUrl;
+  }
+  if (!dataUrl.startsWith("data:")) {
+    return dataUrl;
+  }
+  if (estimateDataUrlBytes(dataUrl) <= MAX_INLINE_IMAGE_BYTES) {
+    return dataUrl;
+  }
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Image optimization failed."));
+    img.src = dataUrl;
+  });
+
+  const { width, height } = image;
+  if (!width || !height) {
+    return dataUrl;
+  }
+
+  const maxDimension = Math.max(width, height);
+  if (maxDimension <= MAX_IMAGE_DIMENSION) {
+    return dataUrl;
+  }
+
+  const scale = MAX_IMAGE_DIMENSION / maxDimension;
+  const targetWidth = Math.round(width * scale);
+  const targetHeight = Math.round(height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return dataUrl;
+  }
+  context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  const mimeTypes = ["image/webp", "image/jpeg"];
+  const qualitySteps = [0.82, 0.7, 0.6];
+
+  for (const type of mimeTypes) {
+    for (const quality of qualitySteps) {
+      const candidate = canvas.toDataURL(type, quality);
+      if (estimateDataUrlBytes(candidate) <= MAX_INLINE_IMAGE_BYTES) {
+        return candidate;
+      }
+    }
+  }
+
+  const fallback = canvas.toDataURL("image/jpeg", 0.6);
+  return estimateDataUrlBytes(fallback) <= estimateDataUrlBytes(dataUrl) ? fallback : dataUrl;
 };
 
 export const generateLlmImage = async (
@@ -143,9 +206,19 @@ export const generateLlmImage = async (
   }
 
   let inlineImageUrl = data.b64_json ? `data:image/png;base64,${data.b64_json}` : null;
+  if (inlineImageUrl) {
+    try {
+      inlineImageUrl = await createOptimizedDataUrl(inlineImageUrl);
+    } catch {
+      inlineImageUrl = inlineImageUrl;
+    }
+  }
   if (!inlineImageUrl && data.url) {
     try {
       inlineImageUrl = await resolveDataUrl(data.url);
+      if (inlineImageUrl) {
+        inlineImageUrl = await createOptimizedDataUrl(inlineImageUrl);
+      }
     } catch {
       inlineImageUrl = null;
     }

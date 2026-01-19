@@ -190,6 +190,18 @@
   font-size: 0.9rem;
 }
 
+.learning-session__audio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.learning-session__audio audio {
+  width: 100%;
+}
+
 .learning-session__start {
   background: #f8fafc;
   border-radius: 20px;
@@ -426,6 +438,11 @@
 .learning-session__result h4 {
   margin: 4px 0 6px;
   font-size: 1.1rem;
+}
+
+.learning-session__result-audio {
+  margin-top: 8px;
+  width: 100%;
 }
 
 @media (max-width: 720px) {

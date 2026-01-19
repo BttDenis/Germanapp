@@ -11,6 +11,7 @@ export type WordEntryDraft = {
   exampleEn: string;
   notes?: string;
   imageUrl?: string | null;
+  audioUrl?: string | null;
 };
 
 export type WordEntryInput = WordEntryDraft & {

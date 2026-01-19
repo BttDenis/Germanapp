@@ -16,6 +16,7 @@ export const buildCommonWordEntries = (
     exampleEn: `I am learning the word "${word.english}".`,
     notes: "Seeded from common words list.",
     imageUrl: null,
+    audioUrl: null,
     source: "manual" as const,
     llmGeneratedAt: baseTime,
     llmModel: "common-words-seed",

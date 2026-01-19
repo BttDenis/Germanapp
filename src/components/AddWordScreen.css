@@ -53,6 +53,35 @@
   flex-wrap: wrap;
 }
 
+.add-word-screen__batch-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-word-screen__progressbar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.add-word-screen__progressbar span {
+  display: block;
+  height: 100%;
+  background: #2563eb;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.add-word-screen__progress-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
 .add-word-screen__error {
   color: #b42318;
   background: #fee4e2;

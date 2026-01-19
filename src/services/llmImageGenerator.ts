@@ -6,6 +6,7 @@ export type LlmImageGeneratorOptions = {
   apiKey?: string;
   apiUrl?: string;
   model?: string;
+  size?: "256x256" | "512x512" | "1024x1024";
   useCache?: boolean;
 };
 
@@ -17,6 +18,7 @@ export type LlmImageResult = {
 };
 
 const DEFAULT_IMAGE_MODEL = "gpt-image-1";
+const DEFAULT_IMAGE_SIZE = "512x512";
 const DEFAULT_API_URL = "https://api.openai.com/v1/images/generations";
 
 const buildPrompt = (german: string) =>
@@ -47,27 +49,6 @@ const formatErrorDetails = async (response: Response) => {
   }
 };
 
-const fetchImageAsDataUrl = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Image download failed (${response.status} ${response.statusText}).`);
-  }
-  const blob = await response.blob();
-
-  return await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-      } else {
-        reject(new Error("Image download failed (invalid data URL)."));
-      }
-    };
-    reader.onerror = () => reject(new Error("Image download failed (read error)."));
-    reader.readAsDataURL(blob);
-  });
-};
-
 export const generateLlmImage = async (
   options: LlmImageGeneratorOptions
 ): Promise<LlmImageResult> => {
@@ -76,6 +57,7 @@ export const generateLlmImage = async (
     apiKey,
     apiUrl = DEFAULT_API_URL,
     model = DEFAULT_IMAGE_MODEL,
+    size = DEFAULT_IMAGE_SIZE,
     useCache = true,
   } = options;
 
@@ -108,14 +90,13 @@ export const generateLlmImage = async (
   const basePayload = {
     model,
     prompt: buildPrompt(german),
-    size: "1024x1024",
+    size,
   };
 
-  let response = await requestImage({ ...basePayload, response_format: "b64_json" });
+  let response = await requestImage({ ...basePayload, response_format: "url" });
   if (!response.ok) {
     const details = await formatErrorDetails(response);
-    const shouldRetry = details.toLowerCase().includes("unknown parameter") &&
-      details.includes("response_format");
+    const shouldRetry = details.toLowerCase().includes("unknown parameter") && details.includes("response_format");
     if (shouldRetry) {
       response = await requestImage(basePayload);
     } else {
@@ -142,14 +123,7 @@ export const generateLlmImage = async (
     throw new Error("Image response missing URL.");
   }
 
-  let imageUrl = inlineImageUrl ?? data.url ?? "";
-  if (!inlineImageUrl && data.url) {
-    try {
-      imageUrl = await fetchImageAsDataUrl(data.url);
-    } catch {
-      imageUrl = data.url;
-    }
-  }
+  const imageUrl = data.url ?? inlineImageUrl ?? "";
 
   const result = {
     imageUrl,

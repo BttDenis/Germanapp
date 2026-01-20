@@ -56,27 +56,6 @@ Response:
 
 The client supports `url`, `imageUrl`, or `location` fields for the returned URL.
 
-## Backend in this repo
-
-The backend server in `scripts/backend-server.mjs` includes an `/api/images` endpoint that
-accepts data URLs and stores the resulting files on disk while saving metadata in MongoDB.
-Configure the backend process with:
-
-```bash
-PORT=8787
-MONGODB_URI=mongodb://localhost:27017/germanapp
-MONGODB_DB=germanapp
-IMAGE_UPLOAD_TOKEN=your-shared-token
-IMAGE_STORAGE_PATH=./uploads
-PUBLIC_IMAGE_BASE_URL=http://localhost:8787/uploads
-```
-
-Run it with:
-
-```bash
-npm run backend-server
-```
-
 ## Client configuration
 
 Set these in the Vite `.env` file:

@@ -376,6 +376,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
 
             {gameMode === "letter-select" && activeEntry ? (
               <div className="game-card game-card--compact">
+                <div className="game-card__translation">{activeEntry.english}</div>
                 <p className="game-card__prompt">Select each letter in order to build the word.</p>
                 <div className="letter-sequence">
                   {targetLetters.map((letter, index) => (

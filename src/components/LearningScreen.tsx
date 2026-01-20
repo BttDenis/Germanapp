@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getLearningProgress,
@@ -57,6 +57,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   const [pendingSessionComplete, setPendingSessionComplete] = useState(false);
   const [letterTiles, setLetterTiles] = useState<LetterTile[]>([]);
   const [letterProgress, setLetterProgress] = useState<string[]>([]);
+  const continueButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     setProgressMap(getLearningProgress());
@@ -183,6 +184,18 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setLetterTiles(shuffle(target).map((value, index) => ({ id: index, value, used: false })));
     setLetterProgress([]);
   }, [activeEntry, gameMode]);
+
+  useEffect(() => {
+    if (!resultCard) {
+      return;
+    }
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    continueButtonRef.current?.focus();
+  }, [resultCard]);
 
   const targetLetters = useMemo(() => {
     if (!activeEntry) {
@@ -442,7 +455,12 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 </div>
               ) : null}
               <div className="learning-result__actions">
-                <button type="button" className="primary-button" onClick={handleContinue}>
+                <button
+                  ref={continueButtonRef}
+                  type="button"
+                  className="primary-button"
+                  onClick={handleContinue}
+                >
                   {pendingSessionComplete ? "Finish session" : "Continue"}
                 </button>
               </div>

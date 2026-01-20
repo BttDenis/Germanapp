@@ -87,6 +87,30 @@
   gap: 12px;
 }
 
+.dictionary-card__media {
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.dictionary-card__media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.dictionary-card__placeholder {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  padding: 24px;
+  text-align: center;
+}
+
 .dictionary-card__german {
   font-size: 1.2rem;
   font-weight: 700;
@@ -104,6 +128,18 @@
   gap: 10px;
   font-size: 0.85rem;
   color: #64748b;
+}
+
+.dictionary-card__audio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.dictionary-card__audio audio {
+  width: 100%;
 }
 
 .dictionary-card__examples {

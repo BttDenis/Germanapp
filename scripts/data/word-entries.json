@@ -1,5 +1,359 @@
 [
   {
+    "german": "Dort",
+    "english": "there",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich gehe dort hin.",
+    "exampleEn": "I am going there.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:16:59.401Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907822332-ykj6bu"
+  },
+  {
+    "german": "Insgesamt",
+    "english": "in total",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Insgesamt sind wir fünf Personen.",
+    "exampleEn": "In total, we are five people.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:15:54.582Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907769441-j8o8vn"
+  },
+  {
+    "german": "oben",
+    "english": "above",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Das Bild hängt oben an der Wand.",
+    "exampleEn": "The picture hangs above the wall.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:15:02.867Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907706031-jbmlj6"
+  },
+  {
+    "german": "vorher",
+    "english": "before",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich war vorher hier.",
+    "exampleEn": "I was here before.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:14:00.914Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907644613-fmqmey"
+  },
+  {
+    "german": "Außerdem",
+    "english": "besides",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Außerdem mag ich Schokolade.",
+    "exampleEn": "Besides, I like chocolate.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:12:34.178Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907557762-t3hsd8"
+  },
+  {
+    "german": "Trotzdem",
+    "english": "nevertheless",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Es regnete, trotzdem gingen wir spazieren.",
+    "exampleEn": "It was raining; nevertheless, we went for a walk.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:12:18.925Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907541144-gbzr9s"
+  },
+  {
+    "german": "dort",
+    "english": "there",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich wohne dort.",
+    "exampleEn": "I live there.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:11:24.035Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907487040-gdqk2b",
+    "notes": ""
+  },
+  {
+    "german": "Danach",
+    "english": "after that",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Wir gehen danach essen.",
+    "exampleEn": "We will eat after that.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:10:32.318Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907435377-4mvr40",
+    "notes": ""
+  },
+  {
+    "german": "kaum",
+    "english": "barely",
+    "partOfSpeech": "adj",
+    "article": null,
+    "exampleDe": "Ich habe kaum Zeit.",
+    "exampleEn": "I have barely any time.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:10:00.778Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907405028-pb6q7m",
+    "notes": ""
+  },
+  {
+    "german": "plötzlich",
+    "english": "suddenly",
+    "partOfSpeech": "adj",
+    "article": null,
+    "exampleDe": "Es war plötzlich dunkel.",
+    "exampleEn": "It was suddenly dark.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:08:49.620Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768907332630-a546cd",
+    "notes": ""
+  },
+  {
+    "german": "gewöhnen",
+    "english": "to get used to",
+    "partOfSpeech": "verb",
+    "article": null,
+    "exampleDe": "Ich gewöhne mich an das neue Leben.",
+    "exampleEn": "I am getting used to the new life.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T11:00:49.649Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906855268-lvhhi0",
+    "notes": ""
+  },
+  {
+    "german": "wohnen",
+    "english": "to live",
+    "partOfSpeech": "verb",
+    "article": null,
+    "exampleDe": "Ich wohne in Berlin.",
+    "exampleEn": "I live in Berlin.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:59:48.536Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906797012-0w1mor",
+    "notes": ""
+  },
+  {
+    "german": "Vielleicht",
+    "english": "Maybe",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Vielleicht komme ich morgen.",
+    "exampleEn": "Maybe I will come tomorrow.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:56:28.436Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906591515-j6tyql",
+    "notes": ""
+  },
+  {
+    "german": "Draussen",
+    "english": "outside",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich spiele draussen.",
+    "exampleEn": "I play outside.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:50:46.699Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906251326-topztm",
+    "notes": ""
+  },
+  {
+    "german": "selten",
+    "english": "rarely",
+    "partOfSpeech": "adj",
+    "article": null,
+    "exampleDe": "Ich sehe ihn selten.",
+    "exampleEn": "I see him rarely.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:50:21.406Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906225033-lxcpsh",
+    "notes": ""
+  },
+  {
+    "german": "Schließlich",
+    "english": "finally",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich komme schließlich nach Hause.",
+    "exampleEn": "I am finally coming home.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:49:56.217Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906199832-jd3n66",
+    "notes": ""
+  },
+  {
+    "german": "laut",
+    "english": "loud",
+    "partOfSpeech": "adj",
+    "article": null,
+    "exampleDe": "Die Musik ist laut.",
+    "exampleEn": "The music is loud.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:48:00.498Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906083868-6a4caq",
+    "notes": ""
+  },
+  {
+    "german": "Manchmal",
+    "english": "sometimes",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Manchmal gehe ich spazieren.",
+    "exampleEn": "Sometimes I go for a walk.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:47:17.900Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768906040502-7o1ls8",
+    "notes": ""
+  },
+  {
+    "german": "Inzwischen",
+    "english": "meanwhile",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich mache das inzwischen.",
+    "exampleEn": "I will do that meanwhile.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:45:45.428Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768905947769-7149jm",
+    "notes": ""
+  },
+  {
+    "german": "Außerdem",
+    "english": "besides",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Außerdem habe ich Hunger.",
+    "exampleEn": "Besides, I am hungry.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:45:31.910Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768905934716-bd2mtd",
+    "notes": ""
+  },
+  {
+    "german": "Trotzdem",
+    "english": "nevertheless",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Es regnete, trotzdem gingen wir spazieren.",
+    "exampleEn": "It was raining, nevertheless we went for a walk.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:45:13.885Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768905917348-175644",
+    "notes": ""
+  },
+  {
+    "german": "wohnt",
+    "english": "lives",
+    "partOfSpeech": "verb",
+    "article": null,
+    "exampleDe": "Er wohnt in Berlin.",
+    "exampleEn": "He lives in Berlin.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:38:19.253Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768905511226-gpkk9n",
+    "notes": ""
+  },
+  {
+    "german": "daran",
+    "english": "to it",
+    "partOfSpeech": "other",
+    "article": null,
+    "exampleDe": "Ich denke daran.",
+    "exampleEn": "I think about it.",
+    "notes": "Used to refer to something previously mentioned.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:37:38.399Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768905461423-5yd0ci"
+  },
+  {
+    "german": "Lücke",
+    "english": "gap",
+    "partOfSpeech": "noun",
+    "article": "die",
+    "exampleDe": "Es gibt eine Lücke im Zaun.",
+    "exampleEn": "There is a gap in the fence.",
+    "imageUrl": null,
+    "audioUrl": null,
+    "source": "llm",
+    "llmGeneratedAt": "2026-01-20T10:34:31.824Z",
+    "llmModel": "gpt-4o-mini",
+    "id": "entry-1768905282712-6k2pbp",
+    "notes": ""
+  },
+  {
     "german": "beritet",
     "english": "prepares",
     "partOfSpeech": "verb",
@@ -11,7 +365,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:19:52.900Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768904401888-mul4hc"
+    "id": "entry-1768904401888-mul4hc",
+    "notes": ""
   },
   {
     "german": "besucht",
@@ -25,7 +380,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:17:57.139Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768904291446-1lkfsn"
+    "id": "entry-1768904291446-1lkfsn",
+    "notes": ""
   },
   {
     "german": "umfassen",
@@ -39,7 +395,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:15:59.524Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768904165006-x0kgdt"
+    "id": "entry-1768904165006-x0kgdt",
+    "notes": ""
   },
   {
     "german": "Lieferant",
@@ -53,7 +410,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:14:33.623Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768904094910-y3im33"
+    "id": "entry-1768904094910-y3im33",
+    "notes": ""
   },
   {
     "german": "ausgeben",
@@ -67,7 +425,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:05:31.021Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903543876-yhq9tj"
+    "id": "entry-1768903543876-yhq9tj",
+    "notes": ""
   },
   {
     "german": "verbringen",
@@ -81,7 +440,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:04:44.074Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903495726-rqugny"
+    "id": "entry-1768903495726-rqugny",
+    "notes": ""
   },
   {
     "german": "kümmern",
@@ -95,7 +455,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:04:02.404Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903465720-0s85z2"
+    "id": "entry-1768903465720-0s85z2",
+    "notes": ""
   },
   {
     "german": "Rahmen",
@@ -109,7 +470,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:03:22.061Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903422705-c3cx0g"
+    "id": "entry-1768903422705-c3cx0g",
+    "notes": ""
   },
   {
     "german": "hinzufügen",
@@ -123,7 +485,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T10:01:03.910Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903294722-sd04b2"
+    "id": "entry-1768903294722-sd04b2",
+    "notes": ""
   },
   {
     "german": "Reinigung",
@@ -137,7 +500,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T09:59:57.147Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903216097-pn4z83"
+    "id": "entry-1768903216097-pn4z83",
+    "notes": ""
   },
   {
     "german": "sauber",
@@ -151,7 +515,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T09:59:05.434Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903186607-5lx4um"
+    "id": "entry-1768903186607-5lx4um",
+    "notes": ""
   },
   {
     "german": "Kochen",
@@ -165,7 +530,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T09:57:58.769Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903099275-poez3z"
+    "id": "entry-1768903099275-poez3z",
+    "notes": ""
   },
   {
     "german": "wissen",
@@ -179,7 +545,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T09:56:22.103Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768903009237-pld9d7"
+    "id": "entry-1768903009237-pld9d7",
+    "notes": ""
   },
   {
     "german": "Fitnessstudio",
@@ -193,7 +560,8 @@
     "source": "llm",
     "llmGeneratedAt": "2026-01-20T09:53:46.801Z",
     "llmModel": "gpt-4o-mini",
-    "id": "entry-1768902896168-0e9b0f"
+    "id": "entry-1768902896168-0e9b0f",
+    "notes": ""
   },
   {
     "german": "weit",

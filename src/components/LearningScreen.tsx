@@ -194,7 +194,9 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       document.activeElement.blur();
     }
 
-    continueButtonRef.current?.focus();
+    if (continueButtonRef.current) {
+      continueButtonRef.current.focus({ preventScroll: true });
+    }
   }, [resultCard]);
 
   const targetLetters = useMemo(() => {

@@ -73,3 +73,44 @@ word list. The client already knows how to sync if you provide a URL and optiona
 
 3. Run the app (`npm run dev`) on both devices. The dictionary will merge and push entries
    to the shared server so laptop and phone stay aligned.
+
+### Store cards in your own backend
+
+If you want to store cards in MongoDB (or any backend), implement the same simple API that the
+client sync uses and then set `VITE_WORD_SYNC_URL`. See `docs/cards-storage.md` for a detailed
+contract, MongoDB schema, and setup steps. The repo includes a ready-to-run backend at
+`scripts/backend-server.mjs` that implements the required endpoints.
+
+### Store images with a backend (recommended)
+
+The browser stores images as data URLs by default, which can exceed localStorage quotas.
+For a more reliable setup, upload images to a backend (MongoDB + object storage) and store
+the returned URL in each entry.
+
+1. Add these variables to your `.env` file for the Vite app:
+
+   ```bash
+   VITE_IMAGE_UPLOAD_URL=https://your-backend.example.com/api/images
+   VITE_IMAGE_UPLOAD_TOKEN=your-shared-token
+   ```
+
+2. The app will POST JSON payloads like:
+
+   ```json
+   {
+     "dataUrl": "data:image/png;base64,...",
+     "german": "die Katze",
+     "model": "gpt-image-1-mini"
+   }
+   ```
+
+3. Respond with JSON including one of: `url`, `imageUrl`, or `location`:
+
+   ```json
+   { "url": "https://cdn.example.com/images/katze.png" }
+   ```
+
+When configured, the client replaces inline data URLs with the hosted URL before saving,
+preventing images from disappearing due to storage limits.
+
+The same backend server (`scripts/backend-server.mjs`) also includes the image upload endpoint.

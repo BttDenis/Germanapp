@@ -58,7 +58,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   const [letterTiles, setLetterTiles] = useState<LetterTile[]>([]);
   const [letterProgress, setLetterProgress] = useState<string[]>([]);
   const continueButtonRef = useRef<HTMLButtonElement | null>(null);
-  const bodyOverflowRef = useRef<string | null>(null);
 
   useEffect(() => {
     setProgressMap(getLearningProgress());
@@ -188,32 +187,14 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
 
   useEffect(() => {
     if (!resultCard) {
-      if (bodyOverflowRef.current !== null) {
-        document.body.style.overflow = bodyOverflowRef.current;
-        bodyOverflowRef.current = null;
-      }
       return;
     }
-
-    if (bodyOverflowRef.current === null) {
-      bodyOverflowRef.current = document.body.style.overflow;
-    }
-
-    document.body.style.overflow = "hidden";
-    window.scrollTo({ top: 0, behavior: "auto" });
 
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
 
     continueButtonRef.current?.focus();
-
-    return () => {
-      if (bodyOverflowRef.current !== null) {
-        document.body.style.overflow = bodyOverflowRef.current;
-        bodyOverflowRef.current = null;
-      }
-    };
   }, [resultCard]);
 
   const targetLetters = useMemo(() => {
@@ -408,6 +389,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
 
             {gameMode === "letter-select" && activeEntry ? (
               <div className="game-card game-card--compact">
+                <div className="game-card__translation">{activeEntry.english}</div>
                 <p className="game-card__prompt">Select each letter in order to build the word.</p>
                 <div className="letter-sequence">
                   {targetLetters.map((letter, index) => (

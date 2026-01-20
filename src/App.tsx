@@ -4,6 +4,7 @@ import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
 import { generateLlmCard } from "./services/llmCardGenerator";
+import { generateLlmImage } from "./services/llmImageGenerator";
 import {
   WORD_ENTRIES_STORAGE_KEY,
   clearWordEntries,
@@ -80,11 +81,23 @@ export const App = () => {
       userText: entry.german,
       regenerate: true,
     });
+    let imageUrl = entry.imageUrl ?? null;
+
+    try {
+      const imageResult = await generateLlmImage({
+        german: generated.draft.german,
+        useCache: false,
+      });
+      imageUrl = imageResult.imageUrl;
+    } catch (error) {
+      console.warn("Image regeneration failed:", error);
+    }
+
     const updatedEntry: WordEntry = {
       ...entry,
       ...generated.draft,
       notes: generated.draft.notes ?? "",
-      imageUrl: entry.imageUrl ?? null,
+      imageUrl,
       audioUrl: entry.audioUrl ?? null,
       source: "llm",
       llmGeneratedAt: generated.llmGeneratedAt,

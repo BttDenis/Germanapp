@@ -89,6 +89,13 @@ export const DictionaryScreen = ({
 
           return (
             <article className="dictionary-card" key={entry.id}>
+              <div className="dictionary-card__media">
+                {entry.imageUrl ? (
+                  <img src={entry.imageUrl} alt={`Illustration for ${entry.german}`} />
+                ) : (
+                  <div className="dictionary-card__placeholder">No illustration yet</div>
+                )}
+              </div>
               <header>
                 <p className="dictionary-card__german">
                   {entry.article ? `${entry.article} ${entry.german}` : entry.german}
@@ -100,6 +107,12 @@ export const DictionaryScreen = ({
                 <span>{entry.source === "llm" ? "LLM-assisted" : "Manual"}</span>
                 {entry.llmModel ? <span>{entry.llmModel}</span> : null}
               </div>
+              {entry.audioUrl ? (
+                <div className="dictionary-card__audio">
+                  <span>Pronunciation</span>
+                  <audio controls src={entry.audioUrl} />
+                </div>
+              ) : null}
               <div className="dictionary-card__examples">
                 <p>{entry.exampleDe}</p>
                 <p className="dictionary-card__translation">{entry.exampleEn}</p>

@@ -1,6 +1,5 @@
-import "dotenv/config";
-import cors from "cors";
 import express from "express";
+import cors from "cors";
 import { MongoClient } from "mongodb";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

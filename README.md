@@ -74,16 +74,6 @@ word list. The client already knows how to sync if you provide a URL and optiona
 3. Run the app (`npm run dev`) on both devices. The dictionary will merge and push entries
    to the shared server so laptop and phone stay aligned.
 
-### Store cards in your own backend
-
-If you want to store cards in MongoDB (or any backend), implement the same simple API that the
-client sync uses and then set `VITE_WORD_SYNC_URL`. See `docs/cards-storage.md` for a detailed
-contract, MongoDB schema, and setup steps. The repo includes a ready-to-run backend at
-`scripts/backend-server.mjs` that implements the required endpoints.
-
-> Note: run `npm install` at the repo root before starting the backend, or Node will fail to
-> resolve dependencies like `express`.
-
 ### Store images with a backend (recommended)
 
 The browser stores images as data URLs by default, which can exceed localStorage quotas.
@@ -115,5 +105,3 @@ the returned URL in each entry.
 
 When configured, the client replaces inline data URLs with the hosted URL before saving,
 preventing images from disappearing due to storage limits.
-
-The same backend server (`scripts/backend-server.mjs`) also includes the image upload endpoint.

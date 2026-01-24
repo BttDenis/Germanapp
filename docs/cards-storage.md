@@ -33,7 +33,6 @@ WORD_SYNC_TOKEN=your-shared-token
 Run it with:
 
 ```bash
-npm install
 npm run backend-server
 ```
 

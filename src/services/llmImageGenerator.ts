@@ -1,5 +1,6 @@
 import { getCachedImage, saveCachedImage } from "../storage/imageCacheStorage";
 import { resolveApiKey } from "./llmApiKey";
+import { isImageUploadEnabled, uploadImageDataUrl } from "./imageUpload";
 
 export type LlmImageGeneratorOptions = {
   german: string;
@@ -112,6 +113,24 @@ const createOptimizedDataUrl = async (dataUrl: string): Promise<string> => {
 
   const fallback = canvas.toDataURL("image/jpeg", 0.6);
   return estimateDataUrlBytes(fallback) <= estimateDataUrlBytes(dataUrl) ? fallback : dataUrl;
+};
+
+const maybeUploadImage = async (
+  dataUrl: string,
+  german: string,
+  model: string
+): Promise<string> => {
+  if (!isImageUploadEnabled()) {
+    return dataUrl;
+  }
+
+  try {
+    const uploadedUrl = await uploadImageDataUrl({ dataUrl, german, model });
+    return uploadedUrl ?? dataUrl;
+  } catch (error) {
+    console.warn("Image upload failed; keeping inline image.", error);
+    return dataUrl;
+  }
 };
 
 export const generateLlmImage = async (
@@ -227,7 +246,10 @@ export const generateLlmImage = async (
     throw new Error("Image response missing URL.");
   }
 
-  const imageUrl = inlineImageUrl ?? data.url ?? "";
+  let imageUrl = inlineImageUrl ?? data.url ?? "";
+  if (imageUrl.startsWith("data:")) {
+    imageUrl = await maybeUploadImage(imageUrl, german, model);
+  }
 
   const result = {
     imageUrl,

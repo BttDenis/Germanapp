@@ -32,6 +32,50 @@ will work as long as it serves the built assets.
 3. Deploy the `dist/` folder to a static host such as Netlify, Vercel, GitHub Pages,
    or an S3 bucket + CloudFront.
 
+### Build with word sync + MongoDB synchronization
+
+If you want your production build to sync word lists across devices, deploy a sync
+backend alongside the static `dist/` files and point the build at it. You can use
+either the lightweight word sync server (file or MongoDB backed) or the full backend
+server (MongoDB required).
+
+1. Start a sync server:
+
+   **Option A: Word sync server (MongoDB-backed)**
+
+   ```bash
+   WORD_SYNC_MONGODB_URI=mongodb://localhost:27017/germanapp \
+   WORD_SYNC_DB_NAME=germanapp \
+   WORD_SYNC_COLLECTION=wordEntries \
+   WORD_SYNC_HISTORY_COLLECTION=wordEntryHistory \
+   WORD_SYNC_TOKEN=your-shared-token \
+   npm run word-sync-server
+   ```
+
+   **Option B: Full backend server (MongoDB required)**
+
+   ```bash
+   MONGODB_URI=mongodb://localhost:27017/germanapp \
+   MONGODB_DB=germanapp \
+   WORD_SYNC_TOKEN=your-shared-token \
+   npm run backend-server
+   ```
+
+2. Add the sync URL/token to the Vite build environment so the production bundle
+   can sync words (use `/words` for the word-sync-server or `/api/words` for the
+   backend server):
+
+   ```bash
+   VITE_WORD_SYNC_URL=https://your-backend.example.com/api/words
+   VITE_WORD_SYNC_TOKEN=your-shared-token
+   ```
+
+3. Build the app after the env vars are set:
+
+   ```bash
+   npm run build
+   ```
+
 ### Offline usage
 
 Hosting the app makes it available anywhere with internet access, but it does not

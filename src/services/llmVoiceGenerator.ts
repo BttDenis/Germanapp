@@ -1,4 +1,5 @@
 import { resolveApiKey } from "./llmApiKey";
+import { isAudioUploadEnabled, uploadAudioDataUrl } from "./audioUpload";
 
 export type LlmVoiceGeneratorOptions = {
   german: string;
@@ -97,8 +98,17 @@ export const generateLlmVoice = async (
     reader.readAsDataURL(blob);
   });
 
+  let hostedAudioUrl: string | null = null;
+  if (isAudioUploadEnabled()) {
+    try {
+      hostedAudioUrl = await uploadAudioDataUrl({ dataUrl: audioUrl, german, model });
+    } catch (error) {
+      console.warn("Audio upload failed; keeping inline audio.", error);
+    }
+  }
+
   return {
-    audioUrl,
+    audioUrl: hostedAudioUrl ?? audioUrl,
     llmModel: model,
     llmGeneratedAt: new Date().toISOString(),
   };

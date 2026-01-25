@@ -11,8 +11,9 @@ export const resolveApiKey = (apiKey?: string) => {
     );
   }
 
-  if (typeof process !== "undefined") {
-    return process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? null;
+  if (typeof globalThis !== "undefined") {
+    const maybeProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+    return maybeProcess?.env?.LLM_API_KEY ?? maybeProcess?.env?.OPENAI_API_KEY ?? null;
   }
 
   return null;

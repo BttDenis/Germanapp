@@ -102,6 +102,27 @@ You can store entries in a single collection like `wordEntries`:
   - **Upsert each entry** by `id` (better for growth).
 - Keep the response body exactly an array of entries.
 
+## Storage & scalability improvements (MongoDB + client)
+
+These suggestions keep MongoDB as the source of truth while improving client resilience and backend
+performance:
+
+- **Move client entries to IndexedDB** instead of `localStorage` to raise size limits and reduce
+  quota errors during sync merges. Keep the same API shape but use IndexedDB as the backing store.
+- **Upload audio URLs** to the backend (similar to images) so large data URLs do not exceed browser
+  storage limits. Store the hosted URL in the entry.
+- **Prune the image cache automatically** by size or last access to prevent unbounded growth on the
+  client.
+
+## Backend indexes & audit logs
+
+To keep MongoDB performant and observable as data grows:
+
+- Add indexes on `wordEntries`: `{ _id: 1 }`, `{ german: 1 }`, `{ updatedAt: -1 }`.
+- Add indexes on `imageAssets`: `{ word: 1 }`, `{ createdAt: -1 }`.
+- Add an audit log collection (e.g., `wordEntryAudit`) that stores insert/update events with
+  timestamps, payload diffs, and source identifiers to investigate sync anomalies.
+
 ## How this connects in the app
 
 The sync logic lives in `src/services/wordEntriesSync.ts`. On app load it:

@@ -207,6 +207,11 @@ button:disabled {
   font-size: 1.1rem;
 }
 
+.preview-card__sense {
+  color: #c7d2fe;
+  font-size: 0.95rem;
+}
+
 .preview-card__meta {
   display: flex;
   gap: 16px;
@@ -250,6 +255,113 @@ button:disabled {
   gap: 16px;
 }
 
+.add-word-screen__queue-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.add-word-screen__queue-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.add-word-screen__queue-count {
+  font-size: 0.85rem;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.add-word-screen__queue-list {
+  display: grid;
+  gap: 16px;
+}
+
+.queue-card {
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) 1fr;
+  background: #f8fafc;
+}
+
+.queue-card--saved {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.queue-card--skipped {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.queue-card__media {
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.queue-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.queue-card__placeholder {
+  color: #64748b;
+  font-size: 0.9rem;
+  padding: 20px;
+  text-align: center;
+}
+
+.queue-card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.queue-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.queue-card__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.queue-card__audio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.queue-card__audio audio {
+  width: 100%;
+}
+
+.queue-card__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 720px) {
   .add-word-screen__header {
     flex-direction: column;
@@ -280,5 +392,9 @@ button:disabled {
 
   .preview-card__content {
     padding: 20px;
+  }
+
+  .queue-card {
+    grid-template-columns: 1fr;
   }
 }

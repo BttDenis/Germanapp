@@ -26,4 +26,6 @@ export type WordEntry = WordEntryDraft & {
   source: EntrySource;
   llmModel: string | null;
   llmGeneratedAt: string | null;
+  updatedAt: string;
+  clientId: string;
 };

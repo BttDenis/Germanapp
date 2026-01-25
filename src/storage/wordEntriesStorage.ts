@@ -2,6 +2,7 @@ import { KeyValueStorage, memoryStorage } from "./kvStorage";
 import { WordEntry, WordEntryInput } from "../types/wordEntry";
 
 export const WORD_ENTRIES_STORAGE_KEY = "germanapp.wordEntries";
+export const WORD_ENTRIES_CLIENT_ID_KEY = "germanapp.clientId";
 
 const getStorage = (): KeyValueStorage => {
   if (typeof window !== "undefined" && window.localStorage) {
@@ -11,6 +12,16 @@ const getStorage = (): KeyValueStorage => {
 };
 
 const storage = getStorage();
+
+export const getClientId = () => {
+  const existing = storage.getItem(WORD_ENTRIES_CLIENT_ID_KEY);
+  if (existing) {
+    return existing;
+  }
+  const generated = `client-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  storage.setItem(WORD_ENTRIES_CLIENT_ID_KEY, generated);
+  return generated;
+};
 
 const normalizeValue = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
 
@@ -102,9 +113,18 @@ export const setWordEntries = (entries: WordEntry[]) => {
   return persistEntries(entries);
 };
 
+const stampEntryMetadata = (entry: WordEntry, clientId = getClientId()) => {
+  return {
+    ...entry,
+    updatedAt: new Date().toISOString(),
+    clientId,
+  };
+};
+
 export const updateWordEntry = (nextEntry: WordEntry) => {
   const entries = getWordEntries();
-  const nextEntries = entries.map((entry) => (entry.id === nextEntry.id ? nextEntry : entry));
+  const stamped = stampEntryMetadata(nextEntry);
+  const nextEntries = entries.map((entry) => (entry.id === stamped.id ? stamped : entry));
   return persistEntries(nextEntries);
 };
 
@@ -133,7 +153,15 @@ const normalizeImportedEntry = (entry: Partial<WordEntry>): WordEntry | null => 
     source: entry.source ?? "manual",
     llmModel: entry.llmModel ?? null,
     llmGeneratedAt: entry.llmGeneratedAt ?? null,
+    updatedAt: entry.updatedAt ?? new Date().toISOString(),
+    clientId: entry.clientId ?? "import",
   };
+};
+
+const compareTimestamp = (left?: string | null, right?: string | null) => {
+  const leftDate = left ? Date.parse(left) : 0;
+  const rightDate = right ? Date.parse(right) : 0;
+  return leftDate - rightDate;
 };
 
 export const mergeWordEntries = (incoming: Partial<WordEntry>[]) => {
@@ -156,8 +184,11 @@ export const mergeWordEntries = (incoming: Partial<WordEntry>[]) => {
     if (!existingEntry) {
       return;
     }
+    const isIncomingNewer = compareTimestamp(entry.updatedAt, existingEntry.updatedAt) > 0;
     const nextEntry: WordEntry = {
       ...existingEntry,
+      updatedAt: isIncomingNewer ? entry.updatedAt : existingEntry.updatedAt,
+      clientId: isIncomingNewer ? entry.clientId : existingEntry.clientId,
       article: existingEntry.article ?? entry.article ?? null,
       exampleDe: existingEntry.exampleDe || entry.exampleDe,
       exampleEn: existingEntry.exampleEn || entry.exampleEn,
@@ -185,6 +216,8 @@ export const saveWordEntry = (input: WordEntryInput): WordEntry => {
   const nextEntry: WordEntry = {
     ...input,
     id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    updatedAt: new Date().toISOString(),
+    clientId: getClientId(),
   };
   const saved = persistEntries([nextEntry, ...entries]);
   return saved.find((entry) => entry.id === nextEntry.id) ?? nextEntry;
@@ -193,9 +226,12 @@ export const saveWordEntry = (input: WordEntryInput): WordEntry => {
 export const saveWordEntries = (inputs: WordEntryInput[]): WordEntry[] => {
   const entries = getWordEntries();
   const timestamp = Date.now();
+  const clientId = getClientId();
   const nextEntries = inputs.map((input, index) => ({
     ...input,
     id: `entry-${timestamp}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    updatedAt: new Date().toISOString(),
+    clientId,
   }));
   const saved = persistEntries([...nextEntries, ...entries]);
   const savedById = new Map(saved.map((entry) => [entry.id, entry]));

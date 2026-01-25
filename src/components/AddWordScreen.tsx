@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { commonWords } from "../data/commonWords";
 import { generateLlmCard } from "../services/llmCardGenerator";
@@ -56,9 +56,6 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
   } | null>(null);
 
   const canGenerate = inputText.trim().length > 0 && !isGenerating && !isBatchGenerating;
-  const needsApiKey =
-    error?.includes("LLM API key not configured") || mediaError?.includes("LLM API key not configured");
-
   const handleGenerate = async (regenerate = false) => {
     setIsGenerating(true);
     setError(null);

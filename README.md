@@ -11,6 +11,70 @@ npm run dev
 
 Then open <http://localhost:5173>.
 
+## Deploy for access over mobile data
+
+To use the app outside your home network (for example, over mobile data), build the
+production bundle and deploy the `dist/` folder to a static host. Any public URL
+will work as long as it serves the built assets.
+
+1. Build the app:
+
+   ```bash
+   npm run build
+   ```
+
+2. Preview the production build locally (optional):
+
+   ```bash
+   npm run preview
+   ```
+
+3. Deploy the `dist/` folder to a static host such as Netlify, Vercel, GitHub Pages,
+   or an S3 bucket + CloudFront.
+
+### Deploy to GitHub Pages
+
+You can host the production build on GitHub Pages with the following steps:
+
+1. Build the app:
+
+   ```bash
+   npm run build
+   ```
+
+2. Publish the `dist/` folder to the `gh-pages` branch:
+
+   ```bash
+   npx gh-pages -d dist
+   ```
+
+3. In your GitHub repo settings, set **Pages** to deploy from the `gh-pages` branch.
+
+4. Update `vite.config.ts` with the repo name as the base path (example for
+   `https://<user>.github.io/germanapp/`):
+
+   ```ts
+   export default defineConfig({
+     base: "/germanapp/",
+     // ...rest of config
+   });
+   ```
+
+5. Rebuild and republish after setting `base`:
+
+   ```bash
+   npm run build
+   npx gh-pages -d dist
+   ```
+
+### Offline usage
+
+Hosting the app makes it available anywhere with internet access, but it does not
+make the app usable without connectivity. For true offline use, you will need to
+add a service worker and app manifest (PWA) so the app shell and assets are cached
+on the device. Also note that any features that call external APIs (LLM, image
+upload, sync server) still require connectivity.
+
 ### Open on an iPhone
 
 To view the dev server on your iPhone, run the app so it listens on your local network

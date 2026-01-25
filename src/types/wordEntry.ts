@@ -9,7 +9,7 @@ export type WordEntryDraft = {
   article: Article;
   exampleDe: string;
   exampleEn: string;
-  notes?: string;
+  notes?: string | null;
   imageUrl?: string | null;
   audioUrl?: string | null;
 };

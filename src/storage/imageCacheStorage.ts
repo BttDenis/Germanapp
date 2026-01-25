@@ -53,7 +53,9 @@ export const saveCachedImage = (german: string, model: string, image: CachedImag
     persistCache(cache);
   } catch (error) {
     try {
-      storage.removeItem(STORAGE_KEY);
+      if (storage.removeItem) {
+        storage.removeItem(STORAGE_KEY);
+      }
     } catch {
       // Ignore storage cleanup failures.
     }

@@ -7,6 +7,7 @@ export const wordEntryDraftSchema = z
   .object({
     german: z.string().min(1),
     english: z.string().min(1),
+    sense: z.string().optional().nullable(),
     partOfSpeech,
     article,
     exampleDe: z.string().min(1),

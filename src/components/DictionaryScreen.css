@@ -122,6 +122,12 @@
   color: #475569;
 }
 
+.dictionary-card__sense {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
 .dictionary-card__meta {
   display: flex;
   flex-wrap: wrap;

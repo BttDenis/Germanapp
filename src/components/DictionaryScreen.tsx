@@ -101,6 +101,7 @@ export const DictionaryScreen = ({
                   {entry.article ? `${entry.article} ${entry.german}` : entry.german}
                 </p>
                 <p className="dictionary-card__english">{entry.english}</p>
+                {entry.sense ? <p className="dictionary-card__sense">Sense: {entry.sense}</p> : null}
               </header>
               <div className="dictionary-card__meta">
                 <span>{entry.partOfSpeech}</span>

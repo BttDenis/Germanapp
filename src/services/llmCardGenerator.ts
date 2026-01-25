@@ -36,10 +36,11 @@ const buildPrompt = (inputLanguage: "de" | "en", userText: string) => {
     `Input: ${userText}`,
     `Input language: ${inputLanguage}`,
     "Return JSON in the following shape:",
-    `{"german":"","english":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":""}`,
+    `{"german":"","english":"","sense":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":""}`,
     "Rules:",
     "- If inputLanguage is 'de': treat input as German, translate to English.",
     "- If inputLanguage is 'en': produce most common German translation.",
+    "- If multiple meanings exist, include a short 'sense' to disambiguate (1-3 words). Otherwise leave it empty.",
     "- Infer partOfSpeech; if not noun, article must be null.",
     "- Keep example sentence short, A2-B1.",
     "- Avoid sensitive/personal content.",
@@ -57,6 +58,7 @@ const parseJson = (text: string) => {
 const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
   const german = normalizeGerman(draft.german);
   const english = draft.english.trim();
+  const sense = draft.sense?.trim();
   const exampleDe = draft.exampleDe.trim();
   const exampleEn = draft.exampleEn.trim();
   const notes = draft.notes?.trim();
@@ -65,6 +67,7 @@ const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
     ...draft,
     german,
     english,
+    sense: sense ? sense : undefined,
     exampleDe,
     exampleEn,
     notes: notes ? notes : undefined,

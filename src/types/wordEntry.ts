@@ -5,6 +5,7 @@ export type EntrySource = "manual" | "llm";
 export type WordEntryDraft = {
   german: string;
   english: string;
+  sense?: string | null;
   partOfSpeech: PartOfSpeech;
   article: Article;
   exampleDe: string;

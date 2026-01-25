@@ -1,6 +1,6 @@
 # Card storage backend (MongoDB)
 
-This app already supports syncing cards (word entries) to a backend via a simple HTTP API.
+This app supports syncing cards (word entries) to a backend via a delta sync HTTP API.
 To connect your own backend right now, implement the API contract below and configure the
 Vite env variables.
 
@@ -14,14 +14,13 @@ Vite env variables.
    ```
 
 2. Run the app (`npm run dev`). It will:
-   - **GET** the entries at startup and merge into local storage.
-   - **PUT** the merged list back to the backend.
-   - **PUT** updates as you add/edit cards.
+   - **POST** `/api/words/sync` at startup to exchange deltas and merge into local storage.
+   - **POST** `/api/words/sync` as you add/edit/delete cards.
 
 ## Backend in this repo
 
 This repo ships a MongoDB-backed backend server at `scripts/backend-server.mjs` that already
-implements the `/api/words` endpoints. Configure a `.env` file for the backend process:
+implements the `/api/words` and `/api/words/sync` endpoints. Configure a `.env` file for the backend process:
 
 ```bash
 PORT=8787
@@ -38,7 +37,7 @@ npm run backend-server
 
 ## API contract (minimal)
 
-**GET** `/api/words` → return a JSON array of entries:
+**GET** `/api/words` → return a JSON array of entries (optional, useful for debugging):
 
 ```json
 [
@@ -55,21 +54,62 @@ npm run backend-server
     "audioUrl": "https://cdn.example.com/audio/katze.mp3",
     "source": "llm",
     "llmModel": "gpt-4.1-mini",
-    "llmGeneratedAt": "2024-01-01T00:00:00.000Z"
+    "llmGeneratedAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z",
+    "clientId": "client-abc123"
   }
 ]
 ```
 
-**PUT** `/api/words` → accept the full array and overwrite storage:
+**POST** `/api/words/sync` → accept deltas and return updates since `since`:
 
 ```json
-[
-  { "id": "entry-123", "german": "die Katze", "english": "cat", "partOfSpeech": "noun" }
-]
+{
+  "clientId": "client-abc123",
+  "since": "2024-01-10T12:00:00.000Z",
+  "entries": [
+    {
+      "id": "entry-123",
+      "german": "die Katze",
+      "english": "cat",
+      "partOfSpeech": "noun",
+      "updatedAt": "2024-01-10T12:01:00.000Z",
+      "clientId": "client-abc123"
+    }
+  ],
+  "deletedIds": ["entry-999"]
+}
 ```
 
-The client sends/receives the full list, so the backend can store it as a single document or
-as individual entries.
+The backend merges entries by `updatedAt` and returns the changes since the `since` timestamp,
+plus any conflicts for the UI to resolve.
+
+Example response:
+
+```json
+{
+  "entries": [
+    {
+      "id": "entry-123",
+      "german": "die Katze",
+      "english": "cat",
+      "partOfSpeech": "noun",
+      "updatedAt": "2024-01-10T12:02:00.000Z",
+      "clientId": "client-remote"
+    }
+  ],
+  "deletedIds": [],
+  "serverTime": "2024-01-10T12:05:00.000Z",
+  "conflicts": [
+    {
+      "id": "entry-456",
+      "type": "update",
+      "local": { "id": "entry-456", "german": "die Maus", "english": "mouse" },
+      "remote": { "id": "entry-456", "german": "die Maus", "english": "mouse", "notes": "Updated elsewhere" }
+    }
+  ]
+}
+```
 
 ## Suggested MongoDB schema
 
@@ -90,8 +130,9 @@ You can store entries in a single collection like `wordEntries`:
   "source": "llm",
   "llmModel": "gpt-4.1-mini",
   "llmGeneratedAt": "2024-01-01T00:00:00.000Z",
-  "updatedAt": "2024-01-01T00:00:00.000Z"
-}
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "clientId": "client-abc123"
+  }
 ```
 
 ## Backend implementation notes
@@ -100,15 +141,15 @@ You can store entries in a single collection like `wordEntries`:
 - You can either:
   - **Store the full list** as one document (simpler).
   - **Upsert each entry** by `id` (better for growth).
-- Keep the response body exactly an array of entries.
+- Keep the response body for `/api/words/sync` as a JSON object with `entries`, `deletedIds`,
+  `serverTime`, and `conflicts`.
 
 ## How this connects in the app
 
 The sync logic lives in `src/services/wordEntriesSync.ts`. On app load it:
 
-1. Fetches `/api/words` (`GET`).
-2. Merges entries with local storage.
-3. Pushes the merged list back to the backend (`PUT`).
+1. Posts local deltas to `/api/words/sync`.
+2. Applies remote deltas to local storage.
+3. Surfaces any conflicts for manual resolution.
 
-After that, the app periodically pushes updates. This is why you need the two endpoints and
-why the payload is a full array.
+After that, the app periodically sends deltas instead of the full list.

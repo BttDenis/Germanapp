@@ -36,6 +36,7 @@ const client = new MongoClient(MONGODB_URI);
 await client.connect();
 const db = client.db(MONGODB_DB);
 const wordEntries = db.collection("wordEntries");
+const wordEntryDeletions = db.collection("wordEntryDeletions");
 const imageAssets = db.collection("imageAssets");
 
 const isAuthorized = (req, expectedToken) => {
@@ -65,6 +66,7 @@ app.put("/api/words", requireToken(WORD_SYNC_TOKEN), async (req, res) => {
     return;
   }
 
+  const now = new Date().toISOString();
   const bulk = entries.map((entry) => ({
     updateOne: {
       filter: { _id: entry.id },
@@ -72,7 +74,8 @@ app.put("/api/words", requireToken(WORD_SYNC_TOKEN), async (req, res) => {
         $set: {
           ...entry,
           _id: entry.id,
-          updatedAt: new Date().toISOString(),
+          updatedAt: entry.updatedAt ?? now,
+          clientId: entry.clientId ?? "import",
         },
       },
       upsert: true,
@@ -81,8 +84,101 @@ app.put("/api/words", requireToken(WORD_SYNC_TOKEN), async (req, res) => {
 
   if (bulk.length > 0) {
     await wordEntries.bulkWrite(bulk);
+    await wordEntryDeletions.deleteMany({ _id: { $in: entries.map((entry) => entry.id) } });
   }
   res.status(204).send();
+});
+
+const compareTimestamp = (left, right) => {
+  const leftDate = left ? Date.parse(left) : 0;
+  const rightDate = right ? Date.parse(right) : 0;
+  return leftDate - rightDate;
+};
+
+const normalizeEntry = (entry, clientId) => {
+  const now = new Date().toISOString();
+  return {
+    ...entry,
+    updatedAt: entry.updatedAt ?? now,
+    clientId: entry.clientId ?? clientId,
+  };
+};
+
+app.post("/api/words/sync", requireToken(WORD_SYNC_TOKEN), async (req, res) => {
+  const { clientId = "unknown", since = null, entries = [], deletedIds = [] } = req.body ?? {};
+  if (!Array.isArray(entries) || !Array.isArray(deletedIds)) {
+    res.status(400).json({ error: "Payload must include entries and deletedIds arrays." });
+    return;
+  }
+
+  const conflicts = [];
+  for (const entry of entries) {
+    if (!entry?.id) {
+      continue;
+    }
+    const normalized = normalizeEntry(entry, clientId);
+    const existing = await wordEntries.findOne({ _id: entry.id });
+    if (existing) {
+      const existingEntry = { id: existing._id, ...existing };
+      const existingUpdatedAt = existing.updatedAt;
+      const isConcurrent =
+        since &&
+        compareTimestamp(existingUpdatedAt, since) > 0 &&
+        compareTimestamp(normalized.updatedAt, since) > 0 &&
+        normalized.updatedAt !== existingUpdatedAt;
+      if (isConcurrent) {
+        conflicts.push({ id: entry.id, type: "update", local: normalized, remote: existingEntry });
+        continue;
+      }
+      if (compareTimestamp(normalized.updatedAt, existingUpdatedAt) <= 0) {
+        continue;
+      }
+    }
+
+    await wordEntries.updateOne(
+      { _id: entry.id },
+      {
+        $set: {
+          ...normalized,
+          _id: entry.id,
+        },
+      },
+      { upsert: true },
+    );
+    await wordEntryDeletions.deleteOne({ _id: entry.id });
+  }
+
+  for (const id of deletedIds) {
+    if (!id) {
+      continue;
+    }
+    const existing = await wordEntries.findOne({ _id: id });
+    if (!existing) {
+      continue;
+    }
+    if (since && compareTimestamp(existing.updatedAt, since) > 0) {
+      conflicts.push({ id, type: "delete", local: null, remote: { id: existing._id, ...existing } });
+      continue;
+    }
+    await wordEntries.deleteOne({ _id: id });
+    await wordEntryDeletions.updateOne(
+      { _id: id },
+      { $set: { deletedAt: new Date().toISOString() } },
+      { upsert: true },
+    );
+  }
+
+  const entryQuery = since ? { updatedAt: { $gt: since } } : {};
+  const entriesResult = await wordEntries.find(entryQuery).toArray();
+  const deletedQuery = since ? { deletedAt: { $gt: since } } : {};
+  const deletionsResult = since ? await wordEntryDeletions.find(deletedQuery).toArray() : [];
+
+  res.json({
+    entries: entriesResult.map(({ _id, ...rest }) => ({ id: _id, ...rest })),
+    deletedIds: deletionsResult.map(({ _id }) => _id),
+    serverTime: new Date().toISOString(),
+    conflicts,
+  });
 });
 
 const toSafeSlug = (value) =>

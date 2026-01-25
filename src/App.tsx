@@ -10,10 +10,17 @@ import {
   clearWordEntries,
   deleteWordEntry,
   getWordEntries,
+  setWordEntries,
   updateWordEntry,
 } from "./storage/wordEntriesStorage";
 import { WordEntry } from "./types/wordEntry";
-import { scheduleRemoteSync, syncFromRemote } from "./services/wordEntriesSync";
+import {
+  SyncConflict,
+  recordEntryDeletion,
+  scheduleRemoteSync,
+  syncFromRemote,
+} from "./services/wordEntriesSync";
+import { SyncConflictScreen } from "./components/SyncConflictScreen";
 import "./App.css";
 
 type Page = "learn" | "add" | "dictionary";
@@ -21,6 +28,7 @@ type Page = "learn" | "add" | "dictionary";
 export const App = () => {
   const [currentPage, setCurrentPage] = useState<Page>("learn");
   const [entries, setEntries] = useState<WordEntry[]>([]);
+  const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
 
   useEffect(() => {
     setEntries(getWordEntries());
@@ -30,7 +38,10 @@ export const App = () => {
     const loadRemoteEntries = async () => {
       try {
         const result = await syncFromRemote();
-        if (result.enabled && result.added > 0) {
+        if (result.conflicts.length > 0) {
+          setSyncConflicts(result.conflicts);
+        }
+        if (result.enabled && result.changed) {
           setEntries(getWordEntries());
         }
       } catch (error) {
@@ -53,7 +64,14 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
-    scheduleRemoteSync();
+    scheduleRemoteSync((result) => {
+      if (result.conflicts.length > 0) {
+        setSyncConflicts(result.conflicts);
+      }
+      if (result.enabled && result.changed) {
+        setEntries(getWordEntries());
+      }
+    });
   }, [entries]);
 
   const handleEntrySaved = (entry: WordEntry) => {
@@ -66,13 +84,49 @@ export const App = () => {
   };
 
   const handleClearEntries = () => {
+    entries.forEach((entry) => recordEntryDeletion(entry.id));
     clearWordEntries();
     setEntries([]);
   };
 
   const handleDeleteEntry = (entryId: string) => {
     const saved = deleteWordEntry(entryId);
+    recordEntryDeletion(entryId);
     setEntries(saved);
+  };
+
+  const handleResolveConflict = (conflictId: string, action: "local" | "remote" | "merge") => {
+    const conflict = syncConflicts.find((item) => item.id === conflictId);
+    if (!conflict) {
+      return;
+    }
+
+    if (action === "remote" && conflict.remote) {
+      const nextEntries = getWordEntries().filter((entry) => entry.id !== conflict.id);
+      setEntries(setWordEntries([conflict.remote, ...nextEntries]));
+    } else if (action === "merge" && conflict.local && conflict.remote) {
+      const merged: WordEntry = {
+        ...conflict.remote,
+        ...conflict.local,
+        article: conflict.local.article ?? conflict.remote.article ?? null,
+        exampleDe: conflict.local.exampleDe || conflict.remote.exampleDe,
+        exampleEn: conflict.local.exampleEn || conflict.remote.exampleEn,
+        notes: conflict.local.notes || conflict.remote.notes,
+        imageUrl: conflict.local.imageUrl ?? conflict.remote.imageUrl ?? null,
+        audioUrl: conflict.local.audioUrl ?? conflict.remote.audioUrl ?? null,
+        llmModel: conflict.local.llmModel ?? conflict.remote.llmModel ?? null,
+        llmGeneratedAt: conflict.local.llmGeneratedAt ?? conflict.remote.llmGeneratedAt ?? null,
+        source: conflict.local.source ?? conflict.remote.source,
+      };
+      const saved = updateWordEntry(merged);
+      setEntries(saved);
+    } else if (action === "local" && conflict.type === "delete") {
+      recordEntryDeletion(conflict.id);
+      const saved = deleteWordEntry(conflict.id);
+      setEntries(saved);
+    }
+
+    setSyncConflicts((prev) => prev.filter((item) => item.id !== conflictId));
   };
 
   const handleRegenerateEntry = async (entry: WordEntry) => {
@@ -109,6 +163,9 @@ export const App = () => {
 
   return (
     <main className="app">
+      {syncConflicts.length > 0 ? (
+        <SyncConflictScreen conflicts={syncConflicts} onResolve={handleResolveConflict} />
+      ) : null}
       <header className="app__header">
         <div>
           <h1>German Vocabulary Trainer</h1>

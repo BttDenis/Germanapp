@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "word-sync-server": "node ./scripts/word-sync-server.mjs",
     "backend-server": "node ./scripts/backend-server.mjs"
   },
   "dependencies": {

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
@@ -20,7 +21,9 @@ const {
 } = process.env;
 
 if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI is required to start the backend server.");
+  throw new Error(
+    "MONGODB_URI is required to start the backend server. Set it in your shell or a .env file (e.g. MONGODB_URI=mongodb://localhost:27017/germanapp).",
+  );
 }
 
 const app = express();

@@ -91,6 +91,18 @@ const requireToken = (expectedToken) => (req, res, next) => {
   res.status(401).json({ error: "Unauthorized" });
 };
 
+app.get("/", (_req, res) => {
+  res.json({
+    status: "ok",
+    endpoints: {
+      words: "/api/words",
+      sync: "/api/words/sync",
+      images: "/api/images",
+      uploads: "/uploads/<filename>",
+    },
+  });
+});
+
 app.get("/api/words", requireToken(WORD_SYNC_TOKEN), async (_req, res) => {
   const entries = await wordEntries.find({}).toArray();
   res.json(entries.map(({ _id, ...rest }) => ({ id: _id, ...rest })));

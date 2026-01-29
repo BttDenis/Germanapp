@@ -35,7 +35,8 @@ will work as long as it serves the built assets.
 ### Build with word sync + MongoDB synchronization
 
 If you want your production build to sync word lists across devices, deploy a sync
-backend alongside the static `dist/` files and point the build at it. You can use
+backend alongside (or separately from) the static `dist/` files and point the build at it.
+You do not need to run backend commands from inside the `dist/` folder. You can use
 either the lightweight word sync server (file or MongoDB backed) or the full backend
 server (MongoDB required).
 
@@ -60,6 +61,12 @@ server (MongoDB required).
    WORD_SYNC_TOKEN=your-shared-token \
    npm run backend-server
    ```
+
+You can also place these values in a `.env` file before running the backend server.
+
+> **Note:** If you see an error about `Cannot find package 'dotenv'`, make sure you are on the
+> latest version of this repo (the backend no longer imports `dotenv`) or remove any leftover
+> `dotenv` import from older copies.
 
 2. Add the sync URL/token to the Vite build environment so the production bundle
    can sync words (use `/words` for the word-sync-server or `/api/words` for the

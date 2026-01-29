@@ -2,13 +2,48 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_PORT = 8787;
 const DEFAULT_DB = "germanapp";
 const DEFAULT_IMAGE_DIR = "./uploads";
+
+const loadDotEnv = async () => {
+  const envPath = path.resolve(process.cwd(), ".env");
+  try {
+    const contents = await readFile(envPath, "utf8");
+    for (const line of contents.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+      const equalsIndex = trimmed.indexOf("=");
+      if (equalsIndex === -1) {
+        continue;
+      }
+      const key = trimmed.slice(0, equalsIndex).trim();
+      if (!key || process.env[key]) {
+        continue;
+      }
+      let value = trimmed.slice(equalsIndex + 1).trim();
+      if (
+        (value.startsWith("\"") && value.endsWith("\"")) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.warn("Failed to load .env file:", error);
+    }
+  }
+};
+
+await loadDotEnv();
 
 const {
   PORT = DEFAULT_PORT,

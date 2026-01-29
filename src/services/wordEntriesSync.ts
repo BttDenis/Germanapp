@@ -6,7 +6,8 @@ import {
   setWordEntries,
 } from "../storage/wordEntriesStorage";
 
-const SYNC_URL = import.meta.env.VITE_WORD_SYNC_URL ?? "";
+const FALLBACK_SYNC_URL = import.meta.env.DEV ? "http://localhost:8787/api/words" : "";
+const SYNC_URL = import.meta.env.VITE_WORD_SYNC_URL || FALLBACK_SYNC_URL;
 const SYNC_TOKEN = import.meta.env.VITE_WORD_SYNC_TOKEN ?? "";
 const SYNC_ENDPOINT = SYNC_URL ? `${SYNC_URL.replace(/\/$/, "")}/sync` : "";
 const SYNC_STATE_KEY = "germanapp.wordSyncState";

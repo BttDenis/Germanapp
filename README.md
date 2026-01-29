@@ -61,6 +61,8 @@ server (MongoDB required).
    npm run backend-server
    ```
 
+   You can also place these values in a `.env` file before running the backend server.
+
 2. Add the sync URL/token to the Vite build environment so the production bundle
    can sync words (use `/words` for the word-sync-server or `/api/words` for the
    backend server):

@@ -1,169 +1,85 @@
 # Germanapp
 
-## Running the app
+German vocabulary trainer built with Vite + React + TypeScript, with an optional
+Express + MongoDB backend for cross-device sync and media uploads.
 
-This repo includes a simple Vite + React scaffold. To run locally:
+## Local development
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Start frontend:
+
+```bash
 npm run dev
 ```
 
-Then open <http://localhost:5173>.
-
-## Deploy for access over mobile data
-
-To use the app outside your home network (for example, over mobile data), build the
-production bundle and deploy the `dist/` folder to a static host. Any public URL
-will work as long as it serves the built assets.
-
-1. Build the app:
-
-   ```bash
-   npm run build
-   ```
-
-2. Preview the production build locally (optional):
-
-   ```bash
-   npm run preview
-   ```
-
-3. Deploy the `dist/` folder to a static host such as Netlify, Vercel, GitHub Pages,
-   or an S3 bucket + CloudFront.
-
-### Build with word sync + MongoDB synchronization
-
-If you want your production build to sync word lists across devices, deploy a sync
-backend alongside (or separately from) the static `dist/` files and point the build at it.
-You do not need to run backend commands from inside the `dist/` folder. This repo ships
-one backend server (MongoDB required) for word sync and media uploads.
-
-1. Start a sync server:
-
-   ```bash
-   MONGODB_URI=mongodb://localhost:27017/germanapp \
-   MONGODB_DB=germanapp \
-   WORD_SYNC_TOKEN=your-shared-token \
-   npm run backend-server
-   ```
-
-You can also place these values in a `.env` file before running the backend server.
-
-> **Note:** If you see an error about `Cannot find package 'dotenv'`, make sure you are on the
-> latest version of this repo (the backend no longer imports `dotenv`) or remove any leftover
-> `dotenv` import from older copies.
-
-2. Add the sync URL/token to the Vite build environment so the production bundle
-   can sync words:
-
-   ```bash
-   VITE_WORD_SYNC_URL=https://your-backend.example.com/api/words
-   VITE_WORD_SYNC_TOKEN=your-shared-token
-   ```
-
-3. Build the app after the env vars are set:
-
-   ```bash
-   npm run build
-   ```
-
-### Offline usage
-
-Hosting the app makes it available anywhere with internet access, but it does not
-make the app usable without connectivity. For true offline use, you will need to
-add a service worker and app manifest (PWA) so the app shell and assets are cached
-on the device. Also note that any features that call external APIs (LLM, image
-upload, sync server) still require connectivity.
-
-### Open on an iPhone
-
-To view the dev server on your iPhone, run the app so it listens on your local network
-and then open the host machine's IP address from Safari on the phone:
-
-1. Start the dev server (already configured to listen on all interfaces):
-
-   ```bash
-   npm run dev
-   ```
-
-2. Find your computer's local IP address (example shown):
-
-   - macOS: `ipconfig getifaddr en0` -> `192.168.1.25`
-   - Linux: `hostname -I` -> `192.168.1.25`
-
-3. On your iPhone (same Wi‑Fi network), open:
-
-   ```
-   http://<your-ip>:5173
-   ```
-
-If it does not load, ensure your firewall allows inbound connections to port 5173.
-
-### LLM API key
-
-Create a `.env` file with your key (never hardcode keys in source):
+Start backend (requires MongoDB):
 
 ```bash
-VITE_LLM_API_KEY=your-key-here
+npm run backend-server
 ```
 
-The app reads `VITE_LLM_API_KEY` in the browser build for card, image, and voice generation.
-For server-side usage, prefer a proxy and use `LLM_API_KEY`/`OPENAI_API_KEY` on the server
-environment instead.
+Frontend default URL: `http://localhost:5173`  
+Backend default URL: `http://localhost:8787`
 
-### Sync words across devices
+## Environment variables
 
-The app can sync the dictionary to a shared server endpoint so multiple devices see the same
-word list. The client already knows how to sync if you provide a URL and optional token.
+Copy `.env.example` to `.env` and set only the values you need.
 
-1. Start the included backend server (MongoDB required):
+Frontend (`VITE_*`) variables:
 
-   ```bash
-   MONGODB_URI=mongodb://localhost:27017/germanapp \
-   MONGODB_DB=germanapp \
-   WORD_SYNC_TOKEN=your-shared-token \
-   npm run backend-server
-   ```
+- `VITE_LLM_BACKEND_URL`: backend base URL used for generation endpoints (example: `https://api.example.com`).
+- `VITE_LLM_BACKEND_TOKEN`: optional token for `/api/llm/*` endpoints (falls back to `VITE_WORD_SYNC_TOKEN` when unset).
+- `VITE_WORD_SYNC_URL`: backend words endpoint (example: `https://api.example.com/api/words`).
+- `VITE_WORD_SYNC_TOKEN`: token for sync requests.
 
-2. Add the sync settings to your `.env` file for the Vite app:
+Backend variables:
 
-   ```bash
-   VITE_WORD_SYNC_URL=http://<your-ip>:8787/api/words
-   VITE_WORD_SYNC_TOKEN=your-shared-token
-   ```
+- `MONGODB_URI` (required): MongoDB connection string.
+- `MONGODB_DB`: database name (`germanapp` default).
+- `PORT`: server port (`8787` default).
+- `WORD_SYNC_TOKEN`: bearer token for `/api/words` and `/api/words/sync`.
+- `LLM_PROXY_TOKEN`: optional bearer token for `/api/llm/*` (falls back to `WORD_SYNC_TOKEN`).
+- `LLM_API_KEY` or `OPENAI_API_KEY`: server-side OpenAI key used for card/image/voice generation.
+- `OPENAI_API_BASE_URL`: OpenAI API base URL (`https://api.openai.com/v1` default).
+- `OPENAI_CHAT_MODEL`: backend default model for cards (`gpt-4o-mini` default).
+- `OPENAI_IMAGE_MODEL`: backend default model for images (`gpt-image-1-mini` default).
+- `OPENAI_IMAGE_QUALITY`: backend default image quality (`low` default).
+- `OPENAI_IMAGE_SIZE`: backend default image size (`1024x1024` default).
+- `OPENAI_TTS_MODEL`: backend default TTS model (`gpt-4o-mini-tts` default).
+- `OPENAI_TTS_VOICE`: backend default TTS voice (`alloy` default).
+- `IMAGE_UPLOAD_TOKEN`: bearer token for `/api/images`.
+- `AUDIO_UPLOAD_TOKEN`: bearer token for `/api/audio` (falls back to `IMAGE_UPLOAD_TOKEN`).
+- `IMAGE_STORAGE_PATH`: folder used for uploaded files (`./uploads` default).
+- `PUBLIC_IMAGE_BASE_URL`: optional public base URL for uploaded images.
+- `PUBLIC_AUDIO_BASE_URL`: optional public base URL for uploaded audio.
+- `CORS_ORIGIN`: comma-separated allowlist (example: `https://app.example.com`).
+- `REQUEST_BODY_LIMIT`: JSON body size limit (`10mb` default).
 
-3. Run the app (`npm run dev`) on both devices. The dictionary will merge and push entries
-   to the shared server so laptop and phone stay aligned.
+## Production deployment
 
-### Store images with a backend (recommended)
+Use two deploy targets:
 
-The browser stores images as data URLs by default, which can exceed localStorage quotas.
-For a more reliable setup, upload images to a backend (MongoDB + object storage) and store
-the returned URL in each entry.
+1. Backend server (`npm start`) on a Node host with MongoDB access.
+2. Frontend static bundle (`npm run build`, deploy `dist/`) on a static host.
 
-1. Add these variables to your `.env` file for the Vite app:
+Set the frontend `VITE_*` URLs to your public backend domain and rebuild before deploying.
 
-   ```bash
-   VITE_IMAGE_UPLOAD_URL=https://your-backend.example.com/api/images
-   VITE_IMAGE_UPLOAD_TOKEN=your-shared-token
-   ```
+Detailed guide: `deploy.md`.
 
-2. The app will POST JSON payloads like:
+## API endpoints
 
-   ```json
-   {
-     "dataUrl": "data:image/png;base64,...",
-     "german": "die Katze",
-     "model": "gpt-image-1-mini"
-   }
-   ```
-
-3. Respond with JSON including one of: `url`, `imageUrl`, or `location`:
-
-   ```json
-   { "url": "https://cdn.example.com/images/katze.png" }
-   ```
-
-When configured, the client replaces inline data URLs with the hosted URL before saving,
-preventing images from disappearing due to storage limits.
+- `GET /health`
+- `GET /api/words`
+- `PUT /api/words`
+- `POST /api/words/sync`
+- `POST /api/llm/card`
+- `POST /api/llm/image`
+- `POST /api/llm/voice`
+- `POST /api/images`
+- `POST /api/audio`
+- `GET /uploads/<filename>`

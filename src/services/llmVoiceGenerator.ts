@@ -1,10 +1,7 @@
-import { resolveApiKey } from "./llmApiKey";
-import { isAudioUploadEnabled, uploadAudioDataUrl } from "./audioUpload";
+import { buildLlmBackendHeaders, getLlmBackendEndpoint, parseErrorMessage } from "./llmBackendClient";
 
 export type LlmVoiceGeneratorOptions = {
   german: string;
-  apiKey?: string;
-  apiUrl?: string;
   model?: string;
   voice?: string;
 };
@@ -17,99 +14,48 @@ export type LlmVoiceResult = {
 };
 
 const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
-const DEFAULT_API_URL = "https://api.openai.com/v1/audio/speech";
 const DEFAULT_VOICE = "alloy";
-
-const formatErrorDetails = async (response: Response) => {
-  const statusLabel = `${response.status} ${response.statusText}`.trim();
-
-  try {
-    const text = await response.text();
-    if (!text) {
-      return statusLabel;
-    }
-
-    try {
-      const parsed = JSON.parse(text) as { error?: { message?: string }; message?: string };
-      const message = parsed?.error?.message ?? parsed?.message;
-      if (message) {
-        return `${statusLabel} - ${message}`;
-      }
-    } catch {
-      return `${statusLabel} - ${text}`;
-    }
-
-    return `${statusLabel} - ${text}`;
-  } catch {
-    return statusLabel;
-  }
-};
+const VOICE_ENDPOINT = "/api/llm/voice";
 
 export const generateLlmVoice = async (
   options: LlmVoiceGeneratorOptions
 ): Promise<LlmVoiceResult> => {
-  const {
-    german,
-    apiKey,
-    apiUrl = DEFAULT_API_URL,
-    model = DEFAULT_TTS_MODEL,
-    voice = DEFAULT_VOICE,
-  } = options;
+  const { german, model = DEFAULT_TTS_MODEL, voice = DEFAULT_VOICE } = options;
 
   if (!german.trim()) {
     throw new Error("German word is required to generate audio.");
   }
 
-  const key = resolveApiKey(apiKey);
-  if (!key) {
-    throw new Error("LLM API key not configured.");
-  }
-
-  const response = await fetch(apiUrl, {
+  const endpoint = getLlmBackendEndpoint(VOICE_ENDPOINT);
+  const response = await fetch(endpoint, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
+    headers: buildLlmBackendHeaders(),
     body: JSON.stringify({
+      german,
       model,
-      input: german,
       voice,
-      format: "mp3",
     }),
   });
 
   if (!response.ok) {
-    const details = await formatErrorDetails(response);
-    throw new Error(`Audio generation failed (${details}).`);
+    throw new Error(await parseErrorMessage(response, "Audio generation failed"));
   }
 
-  const blob = await response.blob();
-  const audioUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-      } else {
-        reject(new Error("Audio generation failed (invalid data URL)."));
-      }
-    };
-    reader.onerror = () => reject(new Error("Audio generation failed (read error)."));
-    reader.readAsDataURL(blob);
-  });
+  const payload = (await response.json()) as {
+    audioUrl?: string;
+    llmModel?: string;
+    llmGeneratedAt?: string;
+    llmRawJson?: string;
+  };
 
-  let hostedAudioUrl: string | null = null;
-  if (isAudioUploadEnabled()) {
-    try {
-      hostedAudioUrl = await uploadAudioDataUrl({ dataUrl: audioUrl, german, model });
-    } catch (error) {
-      console.warn("Audio upload failed; keeping inline audio.", error);
-    }
+  if (!payload.audioUrl) {
+    throw new Error("Audio generation response missing URL.");
   }
 
   return {
-    audioUrl: hostedAudioUrl ?? audioUrl,
-    llmModel: model,
-    llmGeneratedAt: new Date().toISOString(),
+    audioUrl: payload.audioUrl,
+    llmModel: payload.llmModel ?? model,
+    llmGeneratedAt: payload.llmGeneratedAt ?? new Date().toISOString(),
+    llmRawJson: payload.llmRawJson,
   };
 };

@@ -4,13 +4,11 @@ import { normalizeGerman } from "../utils/normalizeGerman";
 import { getCachedDraft, setCachedDraft } from "./llmCache";
 import { createDailyRateLimiter } from "./llmRateLimiter";
 import { WordEntryDraft } from "../types/wordEntry";
-import { resolveApiKey } from "./llmApiKey";
+import { buildLlmBackendHeaders, getLlmBackendEndpoint, parseErrorMessage } from "./llmBackendClient";
 
 export type LlmCardGeneratorOptions = {
   inputLanguage: "de" | "en";
   userText: string;
-  apiKey?: string;
-  apiUrl?: string;
   model?: string;
   storage?: KeyValueStorage;
   rateLimitMaxPerDay?: number;
@@ -25,35 +23,8 @@ export type LlmGeneratedDraft = {
 };
 
 const DEFAULT_MODEL = "gpt-4o-mini";
-const DEFAULT_API_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_RATE_LIMIT = 20;
-
-const buildPrompt = (inputLanguage: "de" | "en", userText: string) => {
-  const system =
-    "You generate vocabulary flashcard data for German learners. Output must be valid JSON only. Follow schema strictly. Prefer common everyday meanings.";
-
-  const user = [
-    `Input: ${userText}`,
-    `Input language: ${inputLanguage}`,
-    "Return JSON in the following shape:",
-    `{"german":"","english":"","sense":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":""}`,
-    "Rules:",
-    "- If inputLanguage is 'de': treat input as German, translate to English.",
-    "- If inputLanguage is 'en': produce most common German translation.",
-    "- If multiple meanings exist, include a short 'sense' to disambiguate (1-3 words). Otherwise leave it empty.",
-    "- Infer partOfSpeech; if not noun, article must be null.",
-    "- Keep example sentence short, A2-B1.",
-    "- Avoid sensitive/personal content.",
-    "- Output JSON only, no markdown.",
-  ].join("\n");
-
-  return { system, user };
-};
-
-const parseJson = (text: string) => {
-  const trimmed = text.trim();
-  return JSON.parse(trimmed) as unknown;
-};
+const CARD_ENDPOINT = "/api/llm/card";
 
 const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
   const german = normalizeGerman(draft.german);
@@ -80,8 +51,6 @@ export const generateLlmCard = async (
   const {
     inputLanguage,
     userText,
-    apiKey,
-    apiUrl = DEFAULT_API_URL,
     model = DEFAULT_MODEL,
     storage = memoryStorage(),
     rateLimitMaxPerDay = DEFAULT_RATE_LIMIT,
@@ -105,51 +74,41 @@ export const generateLlmCard = async (
     throw new Error("Daily generation limit reached.");
   }
 
-  const key = resolveApiKey(apiKey);
-  if (!key) {
-    throw new Error("LLM API key not configured.");
-  }
+  const endpoint = getLlmBackendEndpoint(CARD_ENDPOINT);
 
-  const { system, user } = buildPrompt(inputLanguage, userText);
-
-  const response = await fetch(apiUrl, {
+  const response = await fetch(endpoint, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
+    headers: buildLlmBackendHeaders(),
     body: JSON.stringify({
+      inputLanguage,
+      userText,
       model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.4,
     }),
   });
 
   if (!response.ok) {
-    throw new Error("LLM request failed.");
+    throw new Error(await parseErrorMessage(response, "LLM request failed"));
   }
 
   const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    draft?: unknown;
+    llmModel?: string;
+    llmGeneratedAt?: string;
+    llmRawJson?: string;
   };
 
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("LLM response missing content.");
+  if (!payload.draft) {
+    throw new Error("LLM response missing draft.");
   }
 
-  const parsed = parseJson(content);
-  const validated = wordEntryDraftSchema.parse(parsed);
+  const validated = wordEntryDraftSchema.parse(payload.draft);
   const normalized = normalizeDraft(validated);
 
   const generated = {
     draft: normalized,
-    llmModel: model,
-    llmGeneratedAt: new Date().toISOString(),
-    llmRawJson: content,
+    llmModel: payload.llmModel ?? model,
+    llmGeneratedAt: payload.llmGeneratedAt ?? new Date().toISOString(),
+    llmRawJson: payload.llmRawJson,
   };
 
   await limiter.increment();

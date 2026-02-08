@@ -9,7 +9,11 @@ import {
 const FALLBACK_SYNC_URL = import.meta.env.DEV ? "http://localhost:8787/api/words" : "";
 const SYNC_URL = import.meta.env.VITE_WORD_SYNC_URL || FALLBACK_SYNC_URL;
 const SYNC_TOKEN = import.meta.env.VITE_WORD_SYNC_TOKEN ?? "";
-const SYNC_ENDPOINT = SYNC_URL ? `${SYNC_URL.replace(/\/$/, "")}/sync` : "";
+const resolveSyncEndpoint = (syncUrl: string) => {
+  const normalized = syncUrl.replace(/\/$/, "");
+  return normalized.endsWith("/sync") ? normalized : `${normalized}/sync`;
+};
+const SYNC_ENDPOINT = SYNC_URL ? resolveSyncEndpoint(SYNC_URL) : "";
 const SYNC_STATE_KEY = "germanapp.wordSyncState";
 
 let pendingSync: number | null = null;

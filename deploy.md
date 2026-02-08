@@ -1,191 +1,96 @@
-# Deployment guide (Word Sync + MongoDB + full feature set)
+# Deployment Guide (Frontend + Backend)
 
-This guide walks you step by step from a fresh checkout to a production deployment that
-includes word syncing (MongoDB-backed) and image uploads. It covers both the **backend
-server** (MongoDB + word sync + image upload) and the **frontend** (Vite static build).
+This guide gives one deployment path for using the app outside your home network.
 
-> ✅ If you only want word sync (no image uploads), you can use the lightweight
-> `word-sync-server`. The steps below show the **full backend** first, then a
-> **word-sync-only** alternative.
+## 1. Architecture
 
----
+- Frontend: static files from `dist/` (Netlify, Vercel, Cloudflare Pages, S3+CloudFront, etc.).
+- Backend: Node server from `scripts/backend-server.mjs` (Render, Railway, Fly.io, VM, etc.).
+- Database: MongoDB (Atlas recommended).
 
-## 0) Prerequisites
+## 2. Backend deploy
 
-Make sure you have:
-
-- **Node.js 18+** and **npm** on your dev machine.
-- A **MongoDB** database (MongoDB Atlas is easiest for hosted DBs).
-- A place to deploy:
-  - **Backend**: any Node-compatible host (Render, Fly, Railway, DigitalOcean, etc.).
-  - **Frontend**: any static host (Vercel, Netlify, GitHub Pages, S3/CloudFront, etc.).
-
----
-
-## 1) Clone and install
+### 2.1 Required environment variables
 
 ```bash
-git clone <your-repo-url>
-cd Germanapp
-npm install
-```
-
----
-
-## 2) Create MongoDB database (Atlas recommended)
-
-1. Go to **MongoDB Atlas** → Create a **free cluster**.
-2. In **Database Access**, create a DB user (username + password).
-3. In **Network Access**, add your deployment host IPs (or `0.0.0.0/0` for testing).
-4. From **Connect → Drivers**, copy the connection string:
-
-```
-mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/<db>?retryWrites=true&w=majority
-```
-
-Save this for the backend configuration.
-
----
-
-## 3) Decide backend type
-
-### ✅ Recommended: Full backend server (word sync + image upload)
-
-This server powers:
-- Word sync (`/api/words`)
-- Image upload (`/api/images`)
-
-### Alternative: Word sync server only
-
-If you only want word sync and no image uploads, see **Step 7** below.
-
----
-
-## 4) Deploy the backend server (full feature set)
-
-### 4.1 Create backend environment variables
-
-Set these variables in your backend host:
-
-```
-MONGODB_URI=<your MongoDB connection string>
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority
 MONGODB_DB=germanapp
-WORD_SYNC_TOKEN=<random-shared-token>
-IMAGE_UPLOAD_TOKEN=<random-shared-token>
-IMAGE_STORAGE_PATH=./uploads
-PUBLIC_IMAGE_BASE_URL=https://<your-backend-domain>/uploads
 PORT=8787
+WORD_SYNC_TOKEN=<strong-random-token>
+LLM_PROXY_TOKEN=<strong-random-token>
+LLM_API_KEY=<openai-api-key>
+OPENAI_API_BASE_URL=https://api.openai.com/v1
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_IMAGE_MODEL=gpt-image-1-mini
+OPENAI_IMAGE_QUALITY=low
+OPENAI_IMAGE_SIZE=1024x1024
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+OPENAI_TTS_VOICE=alloy
+IMAGE_UPLOAD_TOKEN=<strong-random-token>
+AUDIO_UPLOAD_TOKEN=<strong-random-token>
+IMAGE_STORAGE_PATH=./uploads
+PUBLIC_IMAGE_BASE_URL=https://api.example.com/uploads
+PUBLIC_AUDIO_BASE_URL=https://api.example.com/uploads
+CORS_ORIGIN=https://app.example.com
+REQUEST_BODY_LIMIT=10mb
 ```
 
-**Notes:**
-- `WORD_SYNC_TOKEN` and `IMAGE_UPLOAD_TOKEN` can be the same or different.
-- `PUBLIC_IMAGE_BASE_URL` should match your backend URL.
-
-### 4.2 Start command
-
-Your backend host should run:
+### 2.2 Start command
 
 ```bash
-npm run backend-server
+npm install
+npm start
 ```
 
-### 4.3 Confirm backend is reachable
+`npm start` runs `node ./scripts/backend-server.mjs`.
 
-After deployment, test:
+### 2.3 Verify backend
 
-- `GET https://<backend-domain>/api/words`
-- `POST https://<backend-domain>/api/images`
+Run these checks against your deployed backend URL:
 
-If tokens are set, requests must include:
-
-```
-Authorization: Bearer <token>
+```bash
+curl https://api.example.com/health
+curl https://api.example.com/
 ```
 
----
+Expected:
 
-## 5) Configure frontend environment variables
+- `/health` returns `{"status":"ok"}`
+- `/` returns endpoint index JSON
 
-Create a `.env.production` (or set environment variables on your frontend host):
+## 3. Frontend deploy
 
-```
-VITE_WORD_SYNC_URL=https://<backend-domain>/api/words
+### 3.1 Frontend environment variables
+
+Set these in your frontend host (or `.env.production` before build):
+
+```bash
+VITE_LLM_BACKEND_URL=https://api.example.com
+VITE_LLM_BACKEND_TOKEN=<LLM_PROXY_TOKEN>
+VITE_WORD_SYNC_URL=https://api.example.com/api/words
 VITE_WORD_SYNC_TOKEN=<WORD_SYNC_TOKEN>
-VITE_IMAGE_UPLOAD_URL=https://<backend-domain>/api/images
-VITE_IMAGE_UPLOAD_TOKEN=<IMAGE_UPLOAD_TOKEN>
 ```
 
-These values ensure the app uses the backend for word sync and image uploads.
-
----
-
-## 6) Build and deploy the frontend
-
-### 6.1 Build
+### 3.2 Build and publish
 
 ```bash
+npm install
 npm run build
 ```
 
-### 6.2 Deploy the `dist/` folder
+Deploy the generated `dist/` folder to your static host.
 
-Upload the `dist/` folder to your static host (Vercel, Netlify, etc.).
+## 4. End-to-end validation
 
----
+1. Open deployed frontend (`https://app.example.com`).
+2. Add a word and refresh.
+3. Open the app on a second device and confirm sync.
+4. Generate image/audio and confirm URLs load from backend `uploads`.
 
-## 7) Optional: Word sync only (no image upload)
+## 5. Common failures
 
-If you want only word syncing (and no image upload), use the lightweight server:
-
-### 7.1 Backend environment variables
-
-```
-WORD_SYNC_MONGODB_URI=<your MongoDB connection string>
-WORD_SYNC_DB_NAME=germanapp
-WORD_SYNC_COLLECTION=wordEntries
-WORD_SYNC_HISTORY_COLLECTION=wordEntryHistory
-WORD_SYNC_TOKEN=<random-shared-token>
-WORD_SYNC_PORT=8787
-```
-
-### 7.2 Start command
-
-```bash
-npm run word-sync-server
-```
-
-### 7.3 Frontend env
-
-```
-VITE_WORD_SYNC_URL=https://<backend-domain>/words
-VITE_WORD_SYNC_TOKEN=<WORD_SYNC_TOKEN>
-```
-
----
-
-## 8) Verify end-to-end
-
-1. Open the deployed frontend.
-2. Add a new word → refresh → confirm it persists.
-3. On a second device/browser, open the app → confirm the word syncs.
-4. Add an image → confirm it uploads and displays correctly.
-
----
-
-## 9) Troubleshooting tips
-
-- **CORS errors**: Ensure backend is reachable over HTTPS and allows requests.
-- **401 Unauthorized**: Check that the `Authorization: Bearer <token>` matches your env.
-- **MongoDB connection fails**: Verify IP allowlist and connection string user/password.
-- **Images not loading**: Confirm `PUBLIC_IMAGE_BASE_URL` matches backend URL and `/uploads` is served.
-
----
-
-## 10) Quick checklist (full feature set)
-
-- [ ] MongoDB cluster created
-- [ ] Backend deployed with MongoDB + tokens
-- [ ] Frontend configured with `VITE_WORD_SYNC_URL` and `VITE_IMAGE_UPLOAD_URL`
-- [ ] Frontend built and deployed
-- [ ] Word sync tested
-- [ ] Image upload tested
+- `401 Unauthorized`: token mismatch between frontend and backend env.
+- `CORS` errors: frontend domain missing from `CORS_ORIGIN`.
+- `413 Payload Too Large`: increase `REQUEST_BODY_LIMIT`.
+- LLM generation returns backend config error: set `LLM_API_KEY` (or `OPENAI_API_KEY`) on backend.
+- upload URL works locally but not in production: set `PUBLIC_IMAGE_BASE_URL` and `PUBLIC_AUDIO_BASE_URL` to your public backend domain.

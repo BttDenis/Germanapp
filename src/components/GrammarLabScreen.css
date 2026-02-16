@@ -135,6 +135,28 @@
   color: #334155;
 }
 
+.grammar-lab__word-source {
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grammar-lab__word-source-title {
+  margin: 0;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.grammar-lab__word-source-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .grammar-lab__actions {
   display: flex;
   gap: 10px;

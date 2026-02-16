@@ -7,6 +7,9 @@ export type LlmGrammarGeneratorOptions = {
   details?: string;
   level?: GrammarLevel;
   formatHint?: string;
+  wordSource?: "dictionary" | "free";
+  dictionaryWords?: string[];
+  freeWords?: string[];
   model?: string;
 };
 
@@ -30,6 +33,9 @@ export const generateLlmGrammarPack = async (
     details = "",
     level = "auto",
     formatHint = "",
+    wordSource = "dictionary",
+    dictionaryWords = [],
+    freeWords = [],
     model = DEFAULT_MODEL,
   } = options;
 
@@ -46,6 +52,9 @@ export const generateLlmGrammarPack = async (
       details: normalizeText(details),
       level,
       formatHint: normalizeText(formatHint),
+      wordSource,
+      dictionaryWords: dictionaryWords.map((word) => normalizeText(word)).filter(Boolean),
+      freeWords: freeWords.map((word) => normalizeText(word)).filter(Boolean),
       model,
     }),
   });

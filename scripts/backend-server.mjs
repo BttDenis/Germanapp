@@ -666,7 +666,23 @@ const buildCardPrompt = (inputLanguage, userText) => {
   return { system, user };
 };
 
-const buildGrammarPrompt = ({ topic, details, level, formatHint }) => {
+const buildGrammarPrompt = ({
+  topic,
+  details,
+  level,
+  formatHint,
+  wordSource = "dictionary",
+  dictionaryWords = [],
+  freeWords = [],
+}) => {
+  const normalizedWordSource = wordSource === "free" ? "free" : "dictionary";
+  const fallbackWordSource =
+    normalizedWordSource === "dictionary" ? "free words (if provided)" : "dictionary words (if provided)";
+  const wordSourceContext =
+    normalizedWordSource === "dictionary"
+      ? "Primary source: dictionary words."
+      : "Primary source: free/custom words.";
+
   const system =
     "You are a German grammar coach. Return valid JSON only. Build compact study packs with clear rules and practical blank-based exercises.";
 
@@ -675,6 +691,10 @@ const buildGrammarPrompt = ({ topic, details, level, formatHint }) => {
     `Level: ${level || "auto"}`,
     `Learner details: ${details || "none"}`,
     `Formatting preference: ${formatHint || "auto"}`,
+    `Word source mode: ${normalizedWordSource}`,
+    wordSourceContext,
+    `Dictionary words: ${dictionaryWords.length > 0 ? dictionaryWords.join(", ") : "none"}`,
+    `Free/custom words: ${freeWords.length > 0 ? freeWords.join(", ") : "none"}`,
     "Return JSON in the exact shape:",
     `{"title":"","topic":"","ruleSummary":[""],"tables":[{"title":"","columns":[""],"rows":[[""]]}],"exercises":[{"id":"","instruction":"","sentenceTemplate":"","baseWord":"","acceptedAnswers":[""],"explanation":"","topicTag":""}],"studyTips":[""]}`,
     "Rules:",
@@ -682,6 +702,9 @@ const buildGrammarPrompt = ({ topic, details, level, formatHint }) => {
     "- Include tables only if useful for this topic (cases, pronouns, prefix patterns, endings, etc.).",
     "- Exercises should be mostly fill-in-the-blank transformations using one blank placeholder: ____ .",
     "- Each exercise must include baseWord in lemma form and acceptedAnswers with at least one valid answer.",
+    `- Prioritize exercise vocabulary from the selected source mode (${normalizedWordSource}).`,
+    `- If the selected source has too few relevant words, fallback to ${fallbackWordSource}.`,
+    "- If both lists are empty or unsuitable, use common everyday German vocabulary and note that implicitly in examples.",
     "- Use simple German examples with English-friendly clarity.",
     "- Keep content safe and non-sensitive.",
     "- Output JSON only; no markdown or extra text.",
@@ -801,6 +824,9 @@ app.post("/api/llm/grammar", requireLlmToken, async (req, res) => {
     details = "",
     level = "auto",
     formatHint = "",
+    wordSource = "dictionary",
+    dictionaryWords = [],
+    freeWords = [],
     model = OPENAI_CHAT_MODEL,
   } = req.body ?? {};
 
@@ -815,6 +841,9 @@ app.post("/api/llm/grammar", requireLlmToken, async (req, res) => {
     details: sanitizeText(details),
     level: sanitizeText(level) || "auto",
     formatHint: sanitizeText(formatHint),
+    wordSource: sanitizeText(wordSource) === "free" ? "free" : "dictionary",
+    dictionaryWords: sanitizeStringArray(dictionaryWords, { max: 50 }),
+    freeWords: sanitizeStringArray(freeWords, { max: 50 }),
   });
 
   const response = await fetch(`${openAiBaseUrl}/chat/completions`, {

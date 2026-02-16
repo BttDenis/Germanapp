@@ -18,13 +18,38 @@ type ExerciseFeedback = {
 const normalizeAnswer = (value: string) => value.trim().toLocaleLowerCase();
 
 const LEVEL_OPTIONS: GrammarLevel[] = ["auto", "A1-A2", "B1", "B2-C1"];
+const WORD_SOURCE_OPTIONS = [
+  { value: "dictionary", label: "Use dictionary words" },
+  { value: "free", label: "Use free/custom words" },
+] as const;
+
+type WordSourceMode = (typeof WORD_SOURCE_OPTIONS)[number]["value"];
+
+const parseWords = (value: string) => {
+  const seen = new Set<string>();
+  const words: string[] = [];
+  value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .forEach((word) => {
+      const key = normalizeAnswer(word);
+      if (!key || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      words.push(word);
+    });
+  return words.slice(0, 40);
+};
 
 export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
   const [topic, setTopic] = useState("");
   const [details, setDetails] = useState("");
   const [formatHint, setFormatHint] = useState("");
   const [level, setLevel] = useState<GrammarLevel>("auto");
-  const [useDictionaryContext, setUseDictionaryContext] = useState(true);
+  const [wordSource, setWordSource] = useState<WordSourceMode>("dictionary");
+  const [freeWords, setFreeWords] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -38,16 +63,25 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
     setSavedPacks(getSavedGrammarPacks());
   }, []);
 
-  const dictionaryWordsPreview = useMemo(
+  const dictionaryWords = useMemo(
     () =>
       entries
-        .slice(0, 20)
-        .map((entry) => `${entry.article ? `${entry.article} ` : ""}${entry.german}`)
-        .join(", "),
+        .slice(0, 40)
+        .map((entry) => {
+          const base = `${entry.article ? `${entry.article} ` : ""}${entry.german}`.trim();
+          return entry.english ? `${base} (${entry.english})` : base;
+        }),
     [entries]
   );
 
-  const canGenerate = topic.trim().length > 0 && !isGenerating;
+  const freeWordList = useMemo(() => parseWords(freeWords), [freeWords]);
+
+  const hasDictionaryWords = dictionaryWords.length > 0;
+  const needsFreeWordFallback = wordSource === "dictionary" && !hasDictionaryWords;
+  const canGenerate =
+    topic.trim().length > 0 &&
+    !isGenerating &&
+    (wordSource === "free" ? freeWordList.length > 0 : hasDictionaryWords || freeWordList.length > 0);
 
   const resetExerciseState = (nextPack: GrammarPack | null) => {
     const nextAnswers: Record<string, string> = {};
@@ -64,21 +98,20 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
     setSaveMessage(null);
 
     try {
-      const contextualDetails = useDictionaryContext && dictionaryWordsPreview
-        ? [
-            details.trim(),
-            "Prefer examples that reuse these known words when reasonable:",
-            dictionaryWordsPreview,
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : details.trim();
+      const contextualDetails = details.trim();
+      const effectiveWordSource: WordSourceMode =
+        wordSource === "dictionary" && !hasDictionaryWords && freeWordList.length > 0
+          ? "free"
+          : wordSource;
 
       const generated = await generateLlmGrammarPack({
         topic: topic.trim(),
         details: contextualDetails,
         formatHint: formatHint.trim(),
         level,
+        wordSource: effectiveWordSource,
+        dictionaryWords,
+        freeWords: freeWordList,
       });
 
       setPack(generated.pack);
@@ -205,14 +238,44 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
             </label>
           </div>
 
-          <label className="grammar-lab__toggle">
-            <input
-              type="checkbox"
-              checked={useDictionaryContext}
-              onChange={(event) => setUseDictionaryContext(event.target.checked)}
-            />
-            <span>Use my dictionary words as context ({entries.length} saved)</span>
-          </label>
+          <div className="grammar-lab__word-source">
+            <p className="grammar-lab__word-source-title">Word source for exercises</p>
+            <div className="grammar-lab__word-source-options">
+              {WORD_SOURCE_OPTIONS.map((option) => (
+                <label className="grammar-lab__toggle" key={option.value}>
+                  <input
+                    type="radio"
+                    name="word-source"
+                    value={option.value}
+                    checked={wordSource === option.value}
+                    onChange={(event) => setWordSource(event.target.value as WordSourceMode)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="grammar-lab__hint">Dictionary words available: {dictionaryWords.length}</p>
+            {needsFreeWordFallback ? (
+              <p className="grammar-lab__hint">
+                No dictionary words found. Add free words below to generate the pack.
+              </p>
+            ) : null}
+            <label className="field field--full">
+              <span>Free/custom words (optional fallback)</span>
+              <textarea
+                value={freeWords}
+                onChange={(event) => setFreeWords(event.target.value)}
+                placeholder="e.g. aufstehen, verstehen, vorstellen"
+                rows={3}
+              />
+            </label>
+            {freeWordList.length > 0 ? (
+              <p className="grammar-lab__hint">
+                Free words parsed: {freeWordList.slice(0, 12).join(", ")}
+                {freeWordList.length > 12 ? " ..." : ""}
+              </p>
+            ) : null}
+          </div>
 
           <div className="grammar-lab__actions">
             <button type="button" className="grammar-lab__button grammar-lab__button--primary" onClick={handleGenerate} disabled={!canGenerate}>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { generateLlmGrammarPack } from "../services/llmGrammarGenerator";
+import { generateLlmGrammarWordList } from "../services/llmGrammarWordListGenerator";
 import { deleteGrammarPack, getSavedGrammarPacks, saveGrammarPack } from "../storage/grammarPackStorage";
 import { GrammarLevel, GrammarPack, SavedGrammarPack } from "../types/grammarPack";
 import { WordEntry } from "../types/wordEntry";
@@ -24,6 +25,11 @@ const WORD_SOURCE_OPTIONS = [
 ] as const;
 
 type WordSourceMode = (typeof WORD_SOURCE_OPTIONS)[number]["value"];
+const FREE_WORD_MODE_OPTIONS = [
+  { value: "manual", label: "I will write words" },
+  { value: "llm", label: "Generate words with LLM" },
+] as const;
+type FreeWordMode = (typeof FREE_WORD_MODE_OPTIONS)[number]["value"];
 
 const parseWords = (value: string) => {
   const seen = new Set<string>();
@@ -49,8 +55,11 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
   const [formatHint, setFormatHint] = useState("");
   const [level, setLevel] = useState<GrammarLevel>("auto");
   const [wordSource, setWordSource] = useState<WordSourceMode>("dictionary");
+  const [freeWordMode, setFreeWordMode] = useState<FreeWordMode>("manual");
   const [freeWords, setFreeWords] = useState("");
+  const [freeWordsCount, setFreeWordsCount] = useState(12);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingWords, setIsGeneratingWords] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [savedPacks, setSavedPacks] = useState<SavedGrammarPack[]>([]);
@@ -78,10 +87,12 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
 
   const hasDictionaryWords = dictionaryWords.length > 0;
   const needsFreeWordFallback = wordSource === "dictionary" && !hasDictionaryWords;
+  const shouldUseFreeWords = wordSource === "free" || needsFreeWordFallback;
   const canGenerate =
     topic.trim().length > 0 &&
     !isGenerating &&
-    (wordSource === "free" ? freeWordList.length > 0 : hasDictionaryWords || freeWordList.length > 0);
+    !isGeneratingWords &&
+    (!shouldUseFreeWords || freeWordMode === "llm" || freeWordList.length > 0);
 
   const resetExerciseState = (nextPack: GrammarPack | null) => {
     const nextAnswers: Record<string, string> = {};
@@ -92,6 +103,34 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
     setExerciseFeedback({});
   };
 
+  const buildWordText = (words: string[]) => words.join(", ");
+
+  const handleGenerateFreeWords = async () => {
+    const sanitizedTopic = topic.trim();
+    if (!sanitizedTopic) {
+      setError("Set a grammar topic first, then generate words.");
+      return [];
+    }
+
+    setIsGeneratingWords(true);
+    setError(null);
+    try {
+      const result = await generateLlmGrammarWordList({
+        topic: sanitizedTopic,
+        details: details.trim(),
+        level,
+        count: freeWordsCount,
+      });
+      setFreeWords(buildWordText(result.words));
+      return result.words;
+    } catch (generationError) {
+      setError(generationError instanceof Error ? generationError.message : "Word list generation failed.");
+      return [];
+    } finally {
+      setIsGeneratingWords(false);
+    }
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
@@ -99,8 +138,15 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
 
     try {
       const contextualDetails = details.trim();
+      let effectiveFreeWords = freeWordList;
+      if (shouldUseFreeWords && freeWordMode === "llm" && effectiveFreeWords.length === 0) {
+        effectiveFreeWords = await handleGenerateFreeWords();
+      }
+      if (shouldUseFreeWords && effectiveFreeWords.length === 0) {
+        throw new Error("No free words available. Add words manually or generate them with LLM.");
+      }
       const effectiveWordSource: WordSourceMode =
-        wordSource === "dictionary" && !hasDictionaryWords && freeWordList.length > 0
+        wordSource === "dictionary" && !hasDictionaryWords && effectiveFreeWords.length > 0
           ? "free"
           : wordSource;
 
@@ -111,7 +157,7 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
         level,
         wordSource: effectiveWordSource,
         dictionaryWords,
-        freeWords: freeWordList,
+        freeWords: effectiveFreeWords,
       });
 
       setPack(generated.pack);
@@ -255,20 +301,78 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
               ))}
             </div>
             <p className="grammar-lab__hint">Dictionary words available: {dictionaryWords.length}</p>
-            {needsFreeWordFallback ? (
-              <p className="grammar-lab__hint">
-                No dictionary words found. Add free words below to generate the pack.
-              </p>
-            ) : null}
-            <label className="field field--full">
-              <span>Free/custom words (optional fallback)</span>
-              <textarea
-                value={freeWords}
-                onChange={(event) => setFreeWords(event.target.value)}
-                placeholder="e.g. aufstehen, verstehen, vorstellen"
-                rows={3}
-              />
-            </label>
+            {shouldUseFreeWords ? (
+              <>
+                {needsFreeWordFallback ? (
+                  <p className="grammar-lab__hint">
+                    Dictionary has no words yet, so this pack will use free-word fallback.
+                  </p>
+                ) : null}
+                <div className="grammar-lab__word-source-options">
+                  {FREE_WORD_MODE_OPTIONS.map((option) => (
+                    <label className="grammar-lab__toggle" key={option.value}>
+                      <input
+                        type="radio"
+                        name="free-word-mode"
+                        value={option.value}
+                        checked={freeWordMode === option.value}
+                        onChange={(event) => setFreeWordMode(event.target.value as FreeWordMode)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {freeWordMode === "llm" ? (
+                  <div className="grammar-lab__inline-row">
+                    <label className="field">
+                      <span>Word count</span>
+                      <input
+                        type="number"
+                        min={6}
+                        max={30}
+                        value={freeWordsCount}
+                        onChange={(event) => {
+                          const parsed = Number.parseInt(event.target.value, 10);
+                          if (Number.isNaN(parsed)) {
+                            return;
+                          }
+                          setFreeWordsCount(Math.max(6, Math.min(30, parsed)));
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="grammar-lab__button grammar-lab__button--ghost"
+                      onClick={() => {
+                        void handleGenerateFreeWords();
+                      }}
+                      disabled={isGeneratingWords || !topic.trim()}
+                    >
+                      {isGeneratingWords ? "Generating words..." : "Generate words"}
+                    </button>
+                  </div>
+                ) : null}
+                <label className="field field--full">
+                  <span>{freeWordMode === "llm" ? "Generated free words" : "Free/custom words"}</span>
+                  <textarea
+                    value={freeWords}
+                    onChange={(event) => setFreeWords(event.target.value)}
+                    placeholder="e.g. aufstehen, verstehen, vorstellen"
+                    rows={3}
+                  />
+                </label>
+              </>
+            ) : (
+              <label className="field field--full">
+                <span>Free/custom words (optional fallback)</span>
+                <textarea
+                  value={freeWords}
+                  onChange={(event) => setFreeWords(event.target.value)}
+                  placeholder="e.g. aufstehen, verstehen, vorstellen"
+                  rows={3}
+                />
+              </label>
+            )}
             {freeWordList.length > 0 ? (
               <p className="grammar-lab__hint">
                 Free words parsed: {freeWordList.slice(0, 12).join(", ")}

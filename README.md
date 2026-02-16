@@ -81,6 +81,7 @@ Detailed guide: `deploy.md`.
 - `POST /api/llm/card`
 - `POST /api/llm/image`
 - `POST /api/llm/voice`
+- `POST /api/llm/grammar/words`
 - `POST /api/images`
 - `POST /api/audio`
 - `GET /uploads/<filename>`

@@ -157,6 +157,13 @@
   gap: 12px;
 }
 
+.grammar-lab__inline-row {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
 .grammar-lab__actions {
   display: flex;
   gap: 10px;

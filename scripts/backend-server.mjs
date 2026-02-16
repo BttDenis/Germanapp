@@ -167,6 +167,7 @@ app.get("/", (_req, res) => {
       audio: "/api/audio",
       llmCard: "/api/llm/card",
       llmGrammar: "/api/llm/grammar",
+      llmGrammarWords: "/api/llm/grammar/words",
       llmImage: "/api/llm/image",
       llmVoice: "/api/llm/voice",
       uploads: "/uploads/<filename>",
@@ -641,6 +642,22 @@ const normalizeGrammarPack = (payload, topic) => {
   };
 };
 
+const normalizeGrammarWordList = (payload, requestedCount) => {
+  const count = Math.max(6, Math.min(30, Number.parseInt(String(requestedCount ?? 12), 10) || 12));
+  const rawWords = sanitizeStringArray(payload?.words, { max: 80 });
+  const unique = [];
+  const seen = new Set();
+  rawWords.forEach((word) => {
+    const key = sanitizeText(word).toLocaleLowerCase();
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    unique.push(word);
+  });
+  return unique.slice(0, count);
+};
+
 const buildCardPrompt = (inputLanguage, userText) => {
   const system =
     "You generate vocabulary flashcard data for German learners. Output must be valid JSON only. Follow schema strictly. Prefer common everyday meanings.";
@@ -711,6 +728,31 @@ const buildGrammarPrompt = ({
   ].join("\n");
 
   return { system, user };
+};
+
+const buildGrammarWordListPrompt = ({ topic, details, level, count }) => {
+  const targetCount = Math.max(6, Math.min(30, Number.parseInt(String(count ?? 12), 10) || 12));
+  const system =
+    "You generate German vocabulary lists for grammar practice. Return valid JSON only.";
+
+  const user = [
+    `Topic: ${topic}`,
+    `Level: ${level || "auto"}`,
+    `Learner details: ${details || "none"}`,
+    `Target count: ${targetCount}`,
+    "Return JSON in exact shape:",
+    `{"words":[""]}`,
+    "Rules:",
+    "- Provide exactly target count items when possible.",
+    "- Keep words practical and directly useful for the topic.",
+    "- Prefer lemma/base forms: verbs in infinitive, adjectives in base form.",
+    "- For nouns, include article (der/die/das + noun) when standard and helpful.",
+    "- Keep each item short (1-3 words).",
+    "- No duplicates.",
+    "- Output JSON only; no markdown or extra text.",
+  ].join("\n");
+
+  return { system, user, targetCount };
 };
 
 const buildImagePrompt = ({
@@ -888,6 +930,73 @@ app.post("/api/llm/grammar", requireLlmToken, async (req, res) => {
 
   res.json({
     pack,
+    llmModel: model,
+    llmGeneratedAt: new Date().toISOString(),
+    llmRawJson: content,
+  });
+});
+
+app.post("/api/llm/grammar/words", requireLlmToken, async (req, res) => {
+  if (!ensureLlmConfigured(res)) {
+    return;
+  }
+
+  const { topic, details = "", level = "auto", count = 12, model = OPENAI_CHAT_MODEL } = req.body ?? {};
+  const sanitizedTopic = sanitizeText(topic);
+  if (!sanitizedTopic) {
+    res.status(400).json({ error: "topic is required." });
+    return;
+  }
+
+  const { system, user, targetCount } = buildGrammarWordListPrompt({
+    topic: sanitizedTopic,
+    details: sanitizeText(details),
+    level: sanitizeText(level) || "auto",
+    count,
+  });
+
+  const response = await fetch(`${openAiBaseUrl}/chat/completions`, {
+    method: "POST",
+    headers: buildOpenAiHeaders(),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.4,
+    }),
+  });
+
+  if (!response.ok) {
+    const detailsMessage = await formatUpstreamError(response);
+    res.status(502).json({ error: `Word list generation failed (${detailsMessage}).` });
+    return;
+  }
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") {
+    res.status(502).json({ error: "Word list generation response missing content." });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    res.status(502).json({ error: "Word list generation returned invalid JSON." });
+    return;
+  }
+
+  const words = normalizeGrammarWordList(parsed, targetCount);
+  if (words.length === 0) {
+    res.status(502).json({ error: "Word list generation returned no words." });
+    return;
+  }
+
+  res.json({
+    words,
     llmModel: model,
     llmGeneratedAt: new Date().toISOString(),
     llmRawJson: content,

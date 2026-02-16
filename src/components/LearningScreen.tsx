@@ -10,6 +10,7 @@ import "./LearningScreen.css";
 
 const SESSION_WORD_LIMIT = 10;
 const GAME_MODES: GameMode[] = ["multiple-choice", "fill-blank", "letter-select"];
+const LETTER_MISTAKE_LIMIT = 2;
 
 type LearningScreenProps = {
   entries: WordEntry[];
@@ -111,7 +112,10 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   const [pendingSessionComplete, setPendingSessionComplete] = useState(false);
   const [letterTiles, setLetterTiles] = useState<LetterTile[]>([]);
   const [letterProgress, setLetterProgress] = useState<string[]>([]);
+  const [letterMistakes, setLetterMistakes] = useState(0);
+  const [letterFeedback, setLetterFeedback] = useState<string | null>(null);
   const continueButtonRef = useRef<HTMLButtonElement | null>(null);
+  const autoAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setProgressMap(getLearningProgress());
@@ -159,10 +163,31 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setFillAnswer("");
     setResultCard(null);
     setPendingSessionComplete(false);
+    setLetterMistakes(0);
+    setLetterFeedback(null);
     setGameMode((currentMode) => {
       const options = GAME_MODES.filter((mode) => mode !== currentMode);
       return options[Math.floor(Math.random() * options.length)] ?? currentMode;
     });
+  };
+
+  const playEntryAudio = (audioUrl?: string | null) => {
+    if (!audioUrl || typeof Audio === "undefined") {
+      return;
+    }
+    try {
+      if (autoAudioRef.current) {
+        autoAudioRef.current.pause();
+        autoAudioRef.current.currentTime = 0;
+      }
+      const audio = new Audio(audioUrl);
+      autoAudioRef.current = audio;
+      void audio.play().catch(() => {
+        // Ignore autoplay errors; user can still play manually.
+      });
+    } catch {
+      // Ignore media playback setup failures.
+    }
   };
 
   const handleReview = (isCorrect: boolean) => {
@@ -177,6 +202,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       reviewed: nextReviewed,
       correct: nextCorrect,
     });
+    playEntryAudio(activeEntry.audioUrl);
     setResultCard({ entry: activeEntry, isCorrect });
 
     if (nextReviewed >= SESSION_WORD_LIMIT) {
@@ -223,6 +249,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     ? Math.round((sessionStats.correct / sessionStats.reviewed) * 100)
     : 0;
   const sessionRemaining = Math.max(SESSION_WORD_LIMIT - sessionStats.reviewed, 0);
+  const letterMistakesRemaining = Math.max(LETTER_MISTAKE_LIMIT - letterMistakes, 0);
 
   const handleStartSession = () => {
     setSessionStats({ reviewed: 0, correct: 0 });
@@ -231,6 +258,8 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setSessionNote(null);
     setResultCard(null);
     setPendingSessionComplete(false);
+    setLetterMistakes(0);
+    setLetterFeedback(null);
     pickNextEntry(activeEntry?.id);
   };
 
@@ -241,18 +270,33 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setFillAnswer("");
     setResultCard(null);
     setPendingSessionComplete(false);
+    setLetterMistakes(0);
+    setLetterFeedback(null);
   };
 
   useEffect(() => {
     if (!activeEntry || gameMode !== "letter-select") {
       setLetterTiles([]);
       setLetterProgress([]);
+      setLetterMistakes(0);
+      setLetterFeedback(null);
       return;
     }
     const target = Array.from(activeEntry.german.replace(/[^\p{L}]/gu, ""));
     setLetterTiles(shuffle(target).map((value, index) => ({ id: index, value, used: false })));
     setLetterProgress([]);
+    setLetterMistakes(0);
+    setLetterFeedback(null);
   }, [activeEntry, gameMode]);
+
+  useEffect(() => {
+    return () => {
+      if (autoAudioRef.current) {
+        autoAudioRef.current.pause();
+        autoAudioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!resultCard) {
@@ -285,13 +329,25 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       setLetterTiles((current) =>
         current.map((item) => (item.id === tile.id ? { ...item, used: true } : item)),
       );
-      handleReview(false);
+      const nextMistakes = letterMistakes + 1;
+      setLetterMistakes(nextMistakes);
+      if (nextMistakes > LETTER_MISTAKE_LIMIT) {
+        setLetterFeedback("Mistake limit reached. Round failed.");
+        handleReview(false);
+        return;
+      }
+      if (nextMistakes === LETTER_MISTAKE_LIMIT) {
+        setLetterFeedback("Mistake noted. Next mistake will end this round.");
+        return;
+      }
+      setLetterFeedback(`Mistake noted. ${LETTER_MISTAKE_LIMIT - nextMistakes} free mistake left.`);
       return;
     }
 
     setLetterTiles((current) =>
       current.map((item) => (item.id === tile.id ? { ...item, used: true } : item)),
     );
+    setLetterFeedback(null);
     setLetterProgress((current) => {
       const next = [...current, tile.value];
       if (next.length === targetLetters.length) {
@@ -473,6 +529,18 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
               <div className="game-card game-card--compact">
                 <div className="game-card__translation">{activeEntry.english}</div>
                 <p className="game-card__prompt">Select each letter in order to build the word.</p>
+                <div className="letter-status">
+                  <span>
+                    Mistakes used: {letterMistakes}/{LETTER_MISTAKE_LIMIT}
+                  </span>
+                  {letterFeedback ? (
+                    <span className="letter-status__feedback letter-status__feedback--warning">
+                      {letterFeedback}
+                    </span>
+                  ) : (
+                    <span>{letterMistakesRemaining} free mistakes left</span>
+                  )}
+                </div>
                 <div className="letter-sequence">
                   {targetLetters.map((letter, index) => (
                     <span
@@ -490,7 +558,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                       type="button"
                       className="letter-button"
                       onClick={() => handleLetterPick(tile)}
-                      disabled={tile.used}
+                      disabled={tile.used || Boolean(resultCard)}
                     >
                       {tile.value}
                     </button>
@@ -504,7 +572,11 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
 
       {resultCard ? (
         <div className="learning-result">
-          <div className="learning-result__card">
+          <div
+            className={`learning-result__card ${
+              resultCard.isCorrect ? "learning-result__card--correct" : "learning-result__card--incorrect"
+            }`}
+          >
             <div className="learning-result__media">
               {resultCard.entry.imageUrl ? (
                 <img src={resultCard.entry.imageUrl} alt={`Illustration for ${resultCard.entry.german}`} />
@@ -515,7 +587,11 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
               )}
             </div>
             <div className="learning-result__content">
-              <p className="learning-session__label">
+              <p
+                className={`learning-session__label ${
+                  resultCard.isCorrect ? "learning-session__label--correct" : "learning-session__label--incorrect"
+                }`}
+              >
                 {resultCard.isCorrect ? "Nice work!" : "Keep practicing"}
               </p>
               <h3 className="learning-result__word">

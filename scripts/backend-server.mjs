@@ -140,6 +140,7 @@ app.get("/", (_req, res) => {
       images: "/api/images",
       audio: "/api/audio",
       llmCard: "/api/llm/card",
+      llmGrammar: "/api/llm/grammar",
       llmImage: "/api/llm/image",
       llmVoice: "/api/llm/voice",
       uploads: "/uploads/<filename>",
@@ -502,6 +503,84 @@ const normalizeCardDraft = (draft) => {
   };
 };
 
+const sanitizeStringArray = (value, { max = 20, min = 0 } = {}) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const cleaned = value
+    .map((item) => sanitizeText(item))
+    .filter(Boolean)
+    .slice(0, max);
+  if (cleaned.length < min) {
+    return [];
+  }
+  return cleaned;
+};
+
+const normalizeGrammarTable = (table, index) => {
+  const columns = sanitizeStringArray(table?.columns, { max: 8, min: 1 });
+  const rawRows = Array.isArray(table?.rows) ? table.rows : [];
+  const rows = rawRows
+    .slice(0, 20)
+    .map((row) => {
+      if (!Array.isArray(row)) {
+        return [];
+      }
+      return row.slice(0, Math.max(columns.length, 1)).map((cell) => sanitizeText(cell));
+    })
+    .filter((row) => row.some(Boolean));
+
+  if (columns.length === 0 && rows.length === 0) {
+    return null;
+  }
+
+  return {
+    title: sanitizeText(table?.title) || `Table ${index + 1}`,
+    columns: columns.length > 0 ? columns : ["Item"],
+    rows,
+  };
+};
+
+const normalizeGrammarExercise = (exercise, index) => {
+  const sentenceTemplate = sanitizeText(exercise?.sentenceTemplate);
+  const acceptedAnswers = sanitizeStringArray(exercise?.acceptedAnswers, { max: 6, min: 1 });
+  if (!sentenceTemplate || acceptedAnswers.length === 0) {
+    return null;
+  }
+
+  return {
+    id: sanitizeText(exercise?.id) || `ex-${index + 1}`,
+    instruction: sanitizeText(exercise?.instruction) || "Fill in the blank with the correct form.",
+    sentenceTemplate,
+    baseWord: sanitizeText(exercise?.baseWord) || "word",
+    acceptedAnswers,
+    explanation: sanitizeText(exercise?.explanation) || "Use the target grammar rule to choose the correct form.",
+    topicTag: sanitizeText(exercise?.topicTag) || "general",
+  };
+};
+
+const normalizeGrammarPack = (payload, topic) => {
+  const ruleSummary = sanitizeStringArray(payload?.ruleSummary, { max: 10 });
+  const studyTips = sanitizeStringArray(payload?.studyTips, { max: 8 });
+  const tables = (Array.isArray(payload?.tables) ? payload.tables : [])
+    .slice(0, 6)
+    .map((table, index) => normalizeGrammarTable(table, index))
+    .filter(Boolean);
+  const exercises = (Array.isArray(payload?.exercises) ? payload.exercises : [])
+    .slice(0, 20)
+    .map((exercise, index) => normalizeGrammarExercise(exercise, index))
+    .filter(Boolean);
+
+  return {
+    title: sanitizeText(payload?.title) || `Grammar: ${sanitizeText(topic)}`,
+    topic: sanitizeText(payload?.topic) || sanitizeText(topic),
+    ruleSummary,
+    tables,
+    exercises,
+    studyTips,
+  };
+};
+
 const buildCardPrompt = (inputLanguage, userText) => {
   const system =
     "You generate vocabulary flashcard data for German learners. Output must be valid JSON only. Follow schema strictly. Prefer common everyday meanings.";
@@ -522,6 +601,30 @@ const buildCardPrompt = (inputLanguage, userText) => {
     "- Keep example sentence short, A2-B1.",
     "- Avoid sensitive/personal content.",
     "- Output JSON only, no markdown.",
+  ].join("\n");
+
+  return { system, user };
+};
+
+const buildGrammarPrompt = ({ topic, details, level, formatHint }) => {
+  const system =
+    "You are a German grammar coach. Return valid JSON only. Build compact study packs with clear rules and practical blank-based exercises.";
+
+  const user = [
+    `Topic: ${topic}`,
+    `Level: ${level || "auto"}`,
+    `Learner details: ${details || "none"}`,
+    `Formatting preference: ${formatHint || "auto"}`,
+    "Return JSON in the exact shape:",
+    `{"title":"","topic":"","ruleSummary":[""],"tables":[{"title":"","columns":[""],"rows":[[""]]}],"exercises":[{"id":"","instruction":"","sentenceTemplate":"","baseWord":"","acceptedAnswers":[""],"explanation":"","topicTag":""}],"studyTips":[""]}`,
+    "Rules:",
+    "- Keep ruleSummary concise and practical (3-8 bullets).",
+    "- Include tables only if useful for this topic (cases, pronouns, prefix patterns, endings, etc.).",
+    "- Exercises should be mostly fill-in-the-blank transformations using one blank placeholder: ____ .",
+    "- Each exercise must include baseWord in lemma form and acceptedAnswers with at least one valid answer.",
+    "- Use simple German examples with English-friendly clarity.",
+    "- Keep content safe and non-sensitive.",
+    "- Output JSON only; no markdown or extra text.",
   ].join("\n");
 
   return { system, user };
@@ -622,6 +725,80 @@ app.post("/api/llm/card", requireLlmToken, async (req, res) => {
 
   res.json({
     draft,
+    llmModel: model,
+    llmGeneratedAt: new Date().toISOString(),
+    llmRawJson: content,
+  });
+});
+
+app.post("/api/llm/grammar", requireLlmToken, async (req, res) => {
+  if (!ensureLlmConfigured(res)) {
+    return;
+  }
+
+  const {
+    topic,
+    details = "",
+    level = "auto",
+    formatHint = "",
+    model = OPENAI_CHAT_MODEL,
+  } = req.body ?? {};
+
+  const sanitizedTopic = sanitizeText(topic);
+  if (!sanitizedTopic) {
+    res.status(400).json({ error: "topic is required." });
+    return;
+  }
+
+  const { system, user } = buildGrammarPrompt({
+    topic: sanitizedTopic,
+    details: sanitizeText(details),
+    level: sanitizeText(level) || "auto",
+    formatHint: sanitizeText(formatHint),
+  });
+
+  const response = await fetch(`${openAiBaseUrl}/chat/completions`, {
+    method: "POST",
+    headers: buildOpenAiHeaders(),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.4,
+    }),
+  });
+
+  if (!response.ok) {
+    const detailsMessage = await formatUpstreamError(response);
+    res.status(502).json({ error: `Grammar generation failed (${detailsMessage}).` });
+    return;
+  }
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") {
+    res.status(502).json({ error: "Grammar generation response missing content." });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    res.status(502).json({ error: "Grammar generation returned invalid JSON." });
+    return;
+  }
+
+  const pack = normalizeGrammarPack(parsed, sanitizedTopic);
+  if (!pack.topic || (pack.ruleSummary.length === 0 && pack.exercises.length === 0)) {
+    res.status(502).json({ error: "Grammar generation returned incomplete data." });
+    return;
+  }
+
+  res.json({
+    pack,
     llmModel: model,
     llmGeneratedAt: new Date().toISOString(),
     llmRawJson: content,

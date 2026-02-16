@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { AddWordScreen } from "./components/AddWordScreen";
 import { DictionaryScreen } from "./components/DictionaryScreen";
+import { GrammarLabScreen } from "./components/GrammarLabScreen";
 import { LearningScreen } from "./components/LearningScreen";
 import { generateLlmCard } from "./services/llmCardGenerator";
 import { generateLlmImage } from "./services/llmImageGenerator";
@@ -24,7 +25,7 @@ import {
 import { SyncConflictScreen } from "./components/SyncConflictScreen";
 import "./App.css";
 
-type Page = "learn" | "add" | "dictionary";
+type Page = "learn" | "add" | "dictionary" | "grammar";
 
 export const App = () => {
   const [currentPage, setCurrentPage] = useState<Page>("learn");
@@ -239,13 +240,20 @@ export const App = () => {
           >
             Dictionary
           </button>
+          <button
+            type="button"
+            className={currentPage === "grammar" ? "app__nav-button is-active" : "app__nav-button"}
+            onClick={() => setCurrentPage("grammar")}
+          >
+            Grammar Lab
+          </button>
         </nav>
       </header>
       {currentPage === "learn" ? (
         <LearningScreen entries={entries} />
       ) : currentPage === "add" ? (
         <AddWordScreen onEntrySaved={handleEntrySaved} onBatchEntrySaved={handleBatchEntrySaved} />
-      ) : (
+      ) : currentPage === "dictionary" ? (
         <DictionaryScreen
           entries={entries}
           onClearEntries={handleClearEntries}
@@ -253,6 +261,8 @@ export const App = () => {
           onRegenerateEntry={handleRegenerateEntry}
           onGenerateAudio={handleGenerateEntryAudio}
         />
+      ) : (
+        <GrammarLabScreen entries={entries} />
       )}
     </main>
   );

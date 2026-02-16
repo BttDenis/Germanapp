@@ -19,6 +19,14 @@ const emptyDraft: WordEntryDraft = {
   exampleDe: "",
   exampleEn: "",
   notes: "",
+  nounPlural: null,
+  nounGenitive: null,
+  verbThirdPerson: null,
+  verbPast: null,
+  verbParticipleIi: null,
+  verbAuxiliary: null,
+  adjectiveComparative: null,
+  adjectiveSuperlative: null,
   imageUrl: null,
   audioUrl: null,
 };
@@ -52,6 +60,22 @@ const findExistingImageEntry = (entries: WordEntry[], german: string): WordEntry
     ) ?? null
   );
 };
+
+const getGrammarFieldPatch = (
+  partOfSpeech: WordEntryDraft["partOfSpeech"],
+  current: Partial<WordEntryDraft>
+): Partial<WordEntryDraft> => ({
+  partOfSpeech,
+  article: partOfSpeech === "noun" ? current.article ?? null : null,
+  nounPlural: partOfSpeech === "noun" ? current.nounPlural ?? null : null,
+  nounGenitive: partOfSpeech === "noun" ? current.nounGenitive ?? null : null,
+  verbThirdPerson: partOfSpeech === "verb" ? current.verbThirdPerson ?? null : null,
+  verbPast: partOfSpeech === "verb" ? current.verbPast ?? null : null,
+  verbParticipleIi: partOfSpeech === "verb" ? current.verbParticipleIi ?? null : null,
+  verbAuxiliary: partOfSpeech === "verb" ? current.verbAuxiliary ?? null : null,
+  adjectiveComparative: partOfSpeech === "adj" ? current.adjectiveComparative ?? null : null,
+  adjectiveSuperlative: partOfSpeech === "adj" ? current.adjectiveSuperlative ?? null : null,
+});
 
 export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreenProps) => {
   const [inputText, setInputText] = useState("");
@@ -530,12 +554,13 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
                       <span>Part of speech</span>
                       <select
                         value={item.entry.partOfSpeech}
-                        onChange={(event) =>
-                          updateBatchQueueEntry(item.id, {
-                            partOfSpeech: event.target.value as WordEntryDraft["partOfSpeech"],
-                            article: event.target.value === "noun" ? item.entry.article : null,
-                          })
-                        }
+                        onChange={(event) => {
+                          const nextPartOfSpeech = event.target.value as WordEntryDraft["partOfSpeech"];
+                          updateBatchQueueEntry(
+                            item.id,
+                            getGrammarFieldPatch(nextPartOfSpeech, item.entry)
+                          );
+                        }}
                       >
                         <option value="noun">noun</option>
                         <option value="verb">verb</option>
@@ -543,25 +568,129 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
                         <option value="other">other</option>
                       </select>
                     </label>
-                    <label className="field">
-                      <span>Article</span>
-                      <select
-                        value={item.entry.article ?? ""}
-                        onChange={(event) =>
-                          updateBatchQueueEntry(item.id, {
-                            article:
-                              event.target.value === ""
-                                ? null
-                                : (event.target.value as WordEntryDraft["article"]),
-                          })
-                        }
-                      >
-                        <option value="">none</option>
-                        <option value="der">der</option>
-                        <option value="die">die</option>
-                        <option value="das">das</option>
-                      </select>
-                    </label>
+                    {item.entry.partOfSpeech === "noun" ? (
+                      <>
+                        <label className="field">
+                          <span>Article</span>
+                          <select
+                            value={item.entry.article ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, {
+                                article:
+                                  event.target.value === ""
+                                    ? null
+                                    : (event.target.value as WordEntryDraft["article"]),
+                              })
+                            }
+                          >
+                            <option value="">none</option>
+                            <option value="der">der</option>
+                            <option value="die">die</option>
+                            <option value="das">das</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Plural</span>
+                          <input
+                            value={item.entry.nounPlural ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, { nounPlural: event.target.value || null })
+                            }
+                            placeholder="e.g. Baume"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Genitive</span>
+                          <input
+                            value={item.entry.nounGenitive ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, { nounGenitive: event.target.value || null })
+                            }
+                            placeholder="e.g. des Baumes"
+                          />
+                        </label>
+                      </>
+                    ) : null}
+                    {item.entry.partOfSpeech === "verb" ? (
+                      <>
+                        <label className="field">
+                          <span>3rd person</span>
+                          <input
+                            value={item.entry.verbThirdPerson ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, { verbThirdPerson: event.target.value || null })
+                            }
+                            placeholder="e.g. er/sie/es lauft"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Past (Prateritum)</span>
+                          <input
+                            value={item.entry.verbPast ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, { verbPast: event.target.value || null })
+                            }
+                            placeholder="e.g. lief"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Participle II</span>
+                          <input
+                            value={item.entry.verbParticipleIi ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, { verbParticipleIi: event.target.value || null })
+                            }
+                            placeholder="e.g. gelaufen"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Auxiliary</span>
+                          <select
+                            value={item.entry.verbAuxiliary ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, {
+                                verbAuxiliary:
+                                  event.target.value === ""
+                                    ? null
+                                    : (event.target.value as WordEntryDraft["verbAuxiliary"]),
+                              })
+                            }
+                          >
+                            <option value="">none</option>
+                            <option value="haben">haben</option>
+                            <option value="sein">sein</option>
+                          </select>
+                        </label>
+                      </>
+                    ) : null}
+                    {item.entry.partOfSpeech === "adj" ? (
+                      <>
+                        <label className="field">
+                          <span>Comparative</span>
+                          <input
+                            value={item.entry.adjectiveComparative ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, {
+                                adjectiveComparative: event.target.value || null,
+                              })
+                            }
+                            placeholder="e.g. schneller"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Superlative</span>
+                          <input
+                            value={item.entry.adjectiveSuperlative ?? ""}
+                            onChange={(event) =>
+                              updateBatchQueueEntry(item.id, {
+                                adjectiveSuperlative: event.target.value || null,
+                              })
+                            }
+                            placeholder="e.g. am schnellsten"
+                          />
+                        </label>
+                      </>
+                    ) : null}
                     <label className="field">
                       <span>Usage example (DE)</span>
                       <input
@@ -688,13 +817,13 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
             <span>Part of speech</span>
             <select
               value={draft.partOfSpeech}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextPartOfSpeech = event.target.value as WordEntryDraft["partOfSpeech"];
                 setDraft({
                   ...draft,
-                  partOfSpeech: event.target.value as WordEntryDraft["partOfSpeech"],
-                  article: event.target.value === "noun" ? draft.article : null,
-                })
-              }
+                  ...getGrammarFieldPatch(nextPartOfSpeech, draft),
+                });
+              }}
             >
               <option value="noun">noun</option>
               <option value="verb">verb</option>
@@ -702,24 +831,117 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
               <option value="other">other</option>
             </select>
           </label>
-          <label className="field">
-            <span>Article</span>
-            <select
-              value={draft.article ?? ""}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  article:
-                    event.target.value === "" ? null : (event.target.value as WordEntryDraft["article"]),
-                })
-              }
-            >
-              <option value="">none</option>
-              <option value="der">der</option>
-              <option value="die">die</option>
-              <option value="das">das</option>
-            </select>
-          </label>
+          {draft.partOfSpeech === "noun" ? (
+            <>
+              <label className="field">
+                <span>Article</span>
+                <select
+                  value={draft.article ?? ""}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      article:
+                        event.target.value === ""
+                          ? null
+                          : (event.target.value as WordEntryDraft["article"]),
+                    })
+                  }
+                >
+                  <option value="">none</option>
+                  <option value="der">der</option>
+                  <option value="die">die</option>
+                  <option value="das">das</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Plural</span>
+                <input
+                  value={draft.nounPlural ?? ""}
+                  onChange={(event) => setDraft({ ...draft, nounPlural: event.target.value || null })}
+                  placeholder="e.g. Baume"
+                />
+              </label>
+              <label className="field">
+                <span>Genitive</span>
+                <input
+                  value={draft.nounGenitive ?? ""}
+                  onChange={(event) => setDraft({ ...draft, nounGenitive: event.target.value || null })}
+                  placeholder="e.g. des Baumes"
+                />
+              </label>
+            </>
+          ) : null}
+          {draft.partOfSpeech === "verb" ? (
+            <>
+              <label className="field">
+                <span>3rd person</span>
+                <input
+                  value={draft.verbThirdPerson ?? ""}
+                  onChange={(event) => setDraft({ ...draft, verbThirdPerson: event.target.value || null })}
+                  placeholder="e.g. er/sie/es lauft"
+                />
+              </label>
+              <label className="field">
+                <span>Past (Prateritum)</span>
+                <input
+                  value={draft.verbPast ?? ""}
+                  onChange={(event) => setDraft({ ...draft, verbPast: event.target.value || null })}
+                  placeholder="e.g. lief"
+                />
+              </label>
+              <label className="field">
+                <span>Participle II</span>
+                <input
+                  value={draft.verbParticipleIi ?? ""}
+                  onChange={(event) => setDraft({ ...draft, verbParticipleIi: event.target.value || null })}
+                  placeholder="e.g. gelaufen"
+                />
+              </label>
+              <label className="field">
+                <span>Auxiliary</span>
+                <select
+                  value={draft.verbAuxiliary ?? ""}
+                  onChange={(event) =>
+                    setDraft({
+                      ...draft,
+                      verbAuxiliary:
+                        event.target.value === ""
+                          ? null
+                          : (event.target.value as WordEntryDraft["verbAuxiliary"]),
+                    })
+                  }
+                >
+                  <option value="">none</option>
+                  <option value="haben">haben</option>
+                  <option value="sein">sein</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+          {draft.partOfSpeech === "adj" ? (
+            <>
+              <label className="field">
+                <span>Comparative</span>
+                <input
+                  value={draft.adjectiveComparative ?? ""}
+                  onChange={(event) =>
+                    setDraft({ ...draft, adjectiveComparative: event.target.value || null })
+                  }
+                  placeholder="e.g. schneller"
+                />
+              </label>
+              <label className="field">
+                <span>Superlative</span>
+                <input
+                  value={draft.adjectiveSuperlative ?? ""}
+                  onChange={(event) =>
+                    setDraft({ ...draft, adjectiveSuperlative: event.target.value || null })
+                  }
+                  placeholder="e.g. am schnellsten"
+                />
+              </label>
+            </>
+          ) : null}
           <label className="field">
             <span>Usage example (DE)</span>
             <input

@@ -112,6 +112,16 @@ export const App = () => {
         exampleDe: conflict.local.exampleDe || conflict.remote.exampleDe,
         exampleEn: conflict.local.exampleEn || conflict.remote.exampleEn,
         notes: conflict.local.notes || conflict.remote.notes,
+        nounPlural: conflict.local.nounPlural ?? conflict.remote.nounPlural ?? null,
+        nounGenitive: conflict.local.nounGenitive ?? conflict.remote.nounGenitive ?? null,
+        verbThirdPerson: conflict.local.verbThirdPerson ?? conflict.remote.verbThirdPerson ?? null,
+        verbPast: conflict.local.verbPast ?? conflict.remote.verbPast ?? null,
+        verbParticipleIi: conflict.local.verbParticipleIi ?? conflict.remote.verbParticipleIi ?? null,
+        verbAuxiliary: conflict.local.verbAuxiliary ?? conflict.remote.verbAuxiliary ?? null,
+        adjectiveComparative:
+          conflict.local.adjectiveComparative ?? conflict.remote.adjectiveComparative ?? null,
+        adjectiveSuperlative:
+          conflict.local.adjectiveSuperlative ?? conflict.remote.adjectiveSuperlative ?? null,
         imageUrl: conflict.local.imageUrl ?? conflict.remote.imageUrl ?? null,
         audioUrl: conflict.local.audioUrl ?? conflict.remote.audioUrl ?? null,
         llmModel: conflict.local.llmModel ?? conflict.remote.llmModel ?? null,

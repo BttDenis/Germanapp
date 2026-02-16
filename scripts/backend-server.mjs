@@ -450,11 +450,28 @@ const sanitizeArticle = (value) => {
   return null;
 };
 
+const sanitizeVerbAuxiliary = (value) => {
+  if (value === "haben" || value === "sein") {
+    return value;
+  }
+  return null;
+};
+
 const normalizeCardDraft = (draft) => {
   const partOfSpeech = sanitizePartOfSpeech(draft?.partOfSpeech);
   const article = partOfSpeech === "noun" ? sanitizeArticle(draft?.article) : null;
   const sense = sanitizeText(draft?.sense);
   const notes = sanitizeText(draft?.notes);
+  const nounPlural = partOfSpeech === "noun" ? sanitizeText(draft?.nounPlural) : "";
+  const nounGenitive = partOfSpeech === "noun" ? sanitizeText(draft?.nounGenitive) : "";
+  const verbThirdPerson = partOfSpeech === "verb" ? sanitizeText(draft?.verbThirdPerson) : "";
+  const verbPast = partOfSpeech === "verb" ? sanitizeText(draft?.verbPast) : "";
+  const verbParticipleIi = partOfSpeech === "verb" ? sanitizeText(draft?.verbParticipleIi) : "";
+  const verbAuxiliary = partOfSpeech === "verb" ? sanitizeVerbAuxiliary(draft?.verbAuxiliary) : null;
+  const adjectiveComparative =
+    partOfSpeech === "adj" ? sanitizeText(draft?.adjectiveComparative) : "";
+  const adjectiveSuperlative =
+    partOfSpeech === "adj" ? sanitizeText(draft?.adjectiveSuperlative) : "";
 
   return {
     german: sanitizeText(draft?.german),
@@ -465,6 +482,14 @@ const normalizeCardDraft = (draft) => {
     exampleDe: sanitizeText(draft?.exampleDe),
     exampleEn: sanitizeText(draft?.exampleEn),
     notes,
+    nounPlural,
+    nounGenitive,
+    verbThirdPerson,
+    verbPast,
+    verbParticipleIi,
+    verbAuxiliary,
+    adjectiveComparative,
+    adjectiveSuperlative,
   };
 };
 
@@ -476,12 +501,15 @@ const buildCardPrompt = (inputLanguage, userText) => {
     `Input: ${userText}`,
     `Input language: ${inputLanguage}`,
     "Return JSON in the following shape:",
-    `{"german":"","english":"","sense":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":""}`,
+    `{"german":"","english":"","sense":"","partOfSpeech":"noun|verb|adj|other","article":"der|die|das|null","exampleDe":"","exampleEn":"","notes":"","nounPlural":"","nounGenitive":"","verbThirdPerson":"","verbPast":"","verbParticipleIi":"","verbAuxiliary":"haben|sein|null","adjectiveComparative":"","adjectiveSuperlative":""}`,
     "Rules:",
     "- If inputLanguage is 'de': treat input as German, translate to English.",
     "- If inputLanguage is 'en': produce most common German translation.",
     "- If multiple meanings exist, include a short 'sense' to disambiguate (1-3 words). Otherwise leave it empty.",
     "- Infer partOfSpeech; if not noun, article must be null.",
+    "- For nouns: include article and if known include nounPlural and nounGenitive. For non-nouns, noun fields must be empty strings.",
+    "- For verbs: include verbThirdPerson (er/sie/es present), verbPast (Prateritum), verbParticipleIi, and verbAuxiliary (haben|sein). For non-verbs, verb fields must be empty strings and verbAuxiliary null.",
+    "- For adjectives: include comparative and superlative forms if standard. For non-adjectives, adjective fields must be empty strings.",
     "- Keep example sentence short, A2-B1.",
     "- Avoid sensitive/personal content.",
     "- Output JSON only, no markdown.",

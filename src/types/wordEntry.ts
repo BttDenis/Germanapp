@@ -1,6 +1,7 @@
 export type PartOfSpeech = "noun" | "verb" | "adj" | "other";
 export type Article = "der" | "die" | "das" | null;
 export type EntrySource = "manual" | "llm";
+export type VerbAuxiliary = "haben" | "sein" | null;
 
 export type WordEntryDraft = {
   german: string;
@@ -11,6 +12,14 @@ export type WordEntryDraft = {
   exampleDe: string;
   exampleEn: string;
   notes?: string | null;
+  nounPlural?: string | null;
+  nounGenitive?: string | null;
+  verbThirdPerson?: string | null;
+  verbPast?: string | null;
+  verbParticipleIi?: string | null;
+  verbAuxiliary?: VerbAuxiliary;
+  adjectiveComparative?: string | null;
+  adjectiveSuperlative?: string | null;
   imageUrl?: string | null;
   audioUrl?: string | null;
 };

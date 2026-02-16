@@ -10,6 +10,15 @@ type DictionaryScreenProps = {
   onRegenerateEntry?: (entry: WordEntry) => Promise<void>;
 };
 
+const partOfSpeechLabel: Record<WordEntry["partOfSpeech"], string> = {
+  noun: "Noun",
+  verb: "Verb",
+  adj: "Adjective",
+  other: "Other",
+};
+
+const displayText = (value?: string | null) => value?.trim() || "Not set";
+
 export const DictionaryScreen = ({
   entries,
   onClearEntries,
@@ -88,13 +97,24 @@ export const DictionaryScreen = ({
           const isRegenerating = Boolean(pendingRegenerations[entry.id]);
 
           return (
-            <article className="dictionary-card" key={entry.id}>
+            <article className={`dictionary-card dictionary-card--${entry.partOfSpeech}`} key={entry.id}>
               <div className="dictionary-card__media">
                 {entry.imageUrl ? (
                   <img src={entry.imageUrl} alt={`Illustration for ${entry.german}`} />
                 ) : (
                   <div className="dictionary-card__placeholder">No illustration yet</div>
                 )}
+              </div>
+              <div className="dictionary-card__tags">
+                <span className={`dictionary-card__tag dictionary-card__tag--${entry.partOfSpeech}`}>
+                  {partOfSpeechLabel[entry.partOfSpeech]}
+                </span>
+                {entry.partOfSpeech === "noun" && entry.article ? (
+                  <span className="dictionary-card__tag dictionary-card__tag--article">{entry.article}</span>
+                ) : null}
+                <span className="dictionary-card__tag dictionary-card__tag--source">
+                  {entry.source === "llm" ? "LLM-assisted" : "Manual"}
+                </span>
               </div>
               <header>
                 <p className="dictionary-card__german">
@@ -103,10 +123,61 @@ export const DictionaryScreen = ({
                 <p className="dictionary-card__english">{entry.english}</p>
                 {entry.sense ? <p className="dictionary-card__sense">Sense: {entry.sense}</p> : null}
               </header>
+              {entry.partOfSpeech === "noun" ? (
+                <div className="dictionary-card__grammar">
+                  <h4>Noun forms</h4>
+                  <div className="dictionary-card__grammar-grid">
+                    <div>
+                      <span>Plural</span>
+                      <strong>{displayText(entry.nounPlural)}</strong>
+                    </div>
+                    <div>
+                      <span>Genitive</span>
+                      <strong>{displayText(entry.nounGenitive)}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {entry.partOfSpeech === "verb" ? (
+                <div className="dictionary-card__grammar">
+                  <h4>Verb forms</h4>
+                  <div className="dictionary-card__grammar-grid">
+                    <div>
+                      <span>3rd person</span>
+                      <strong>{displayText(entry.verbThirdPerson)}</strong>
+                    </div>
+                    <div>
+                      <span>Past</span>
+                      <strong>{displayText(entry.verbPast)}</strong>
+                    </div>
+                    <div>
+                      <span>Participle II</span>
+                      <strong>{displayText(entry.verbParticipleIi)}</strong>
+                    </div>
+                    <div>
+                      <span>Auxiliary</span>
+                      <strong>{displayText(entry.verbAuxiliary)}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {entry.partOfSpeech === "adj" ? (
+                <div className="dictionary-card__grammar">
+                  <h4>Adjective forms</h4>
+                  <div className="dictionary-card__grammar-grid">
+                    <div>
+                      <span>Comparative</span>
+                      <strong>{displayText(entry.adjectiveComparative)}</strong>
+                    </div>
+                    <div>
+                      <span>Superlative</span>
+                      <strong>{displayText(entry.adjectiveSuperlative)}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <div className="dictionary-card__meta">
-                <span>{entry.partOfSpeech}</span>
-                <span>{entry.source === "llm" ? "LLM-assisted" : "Manual"}</span>
-                {entry.llmModel ? <span>{entry.llmModel}</span> : null}
+                {entry.llmModel ? <span>{entry.llmModel}</span> : <span>Custom entry</span>}
               </div>
               {entry.audioUrl ? (
                 <div className="dictionary-card__audio">

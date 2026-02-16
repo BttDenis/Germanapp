@@ -26,6 +26,11 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_RATE_LIMIT = 20;
 const CARD_ENDPOINT = "/api/llm/card";
 
+const normalizeOptionalText = (value: string | null | undefined) => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+};
+
 const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
   const german = normalizeGerman(draft.german);
   const english = draft.english.trim();
@@ -33,6 +38,22 @@ const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
   const exampleDe = draft.exampleDe.trim();
   const exampleEn = draft.exampleEn.trim();
   const notes = draft.notes?.trim();
+  const partOfSpeech = draft.partOfSpeech;
+
+  const nounPlural = partOfSpeech === "noun" ? normalizeOptionalText(draft.nounPlural) : null;
+  const nounGenitive = partOfSpeech === "noun" ? normalizeOptionalText(draft.nounGenitive) : null;
+  const verbThirdPerson = partOfSpeech === "verb" ? normalizeOptionalText(draft.verbThirdPerson) : null;
+  const verbPast = partOfSpeech === "verb" ? normalizeOptionalText(draft.verbPast) : null;
+  const verbParticipleIi =
+    partOfSpeech === "verb" ? normalizeOptionalText(draft.verbParticipleIi) : null;
+  const verbAuxiliary =
+    partOfSpeech === "verb" && (draft.verbAuxiliary === "haben" || draft.verbAuxiliary === "sein")
+      ? draft.verbAuxiliary
+      : null;
+  const adjectiveComparative =
+    partOfSpeech === "adj" ? normalizeOptionalText(draft.adjectiveComparative) : null;
+  const adjectiveSuperlative =
+    partOfSpeech === "adj" ? normalizeOptionalText(draft.adjectiveSuperlative) : null;
 
   return {
     ...draft,
@@ -42,6 +63,14 @@ const normalizeDraft = (draft: WordEntryDraft): WordEntryDraft => {
     exampleDe,
     exampleEn,
     notes: notes ? notes : undefined,
+    nounPlural,
+    nounGenitive,
+    verbThirdPerson,
+    verbPast,
+    verbParticipleIi,
+    verbAuxiliary,
+    adjectiveComparative,
+    adjectiveSuperlative,
   };
 };
 

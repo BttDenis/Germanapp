@@ -3,6 +3,10 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.resolve(SCRIPT_DIR, "..");
 
 const DEFAULT_PORT = 8787;
 const DEFAULT_DB = "germanapp";
@@ -17,7 +21,7 @@ const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
 
 const loadDotEnv = async () => {
-  const envPath = path.resolve(process.cwd(), ".env");
+  const envPath = path.resolve(PROJECT_ROOT, ".env");
   try {
     const contents = await readFile(envPath, "utf8");
     for (const line of contents.split(/\r?\n/)) {
@@ -92,7 +96,9 @@ app.set("trust proxy", 1);
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 
-const uploadDir = path.resolve(process.cwd(), IMAGE_STORAGE_PATH);
+const uploadDir = path.isAbsolute(IMAGE_STORAGE_PATH)
+  ? IMAGE_STORAGE_PATH
+  : path.resolve(PROJECT_ROOT, IMAGE_STORAGE_PATH);
 await mkdir(uploadDir, { recursive: true });
 app.use("/uploads", express.static(uploadDir));
 

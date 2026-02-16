@@ -262,6 +262,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   const [letterProgress, setLetterProgress] = useState<string[]>([]);
   const [letterMistakes, setLetterMistakes] = useState(0);
   const [letterFeedback, setLetterFeedback] = useState<string | null>(null);
+  const [blockedLetterTileIds, setBlockedLetterTileIds] = useState<number[]>([]);
   const continueButtonRef = useRef<HTMLButtonElement | null>(null);
   const autoAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -313,6 +314,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setPendingSessionComplete(false);
     setLetterMistakes(0);
     setLetterFeedback(null);
+    setBlockedLetterTileIds([]);
     setGameMode((currentMode) => {
       const supportsGrammarMode = Boolean(buildGrammarPrompt(next));
       const allowedModes = supportsGrammarMode
@@ -409,13 +411,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     }));
   }, [activeEntry, entries]);
 
-  const activeEntryGrammarFacts = useMemo<GrammarFact[]>(() => {
-    if (!activeEntry) {
-      return [];
-    }
-    return getGrammarFacts(activeEntry);
-  }, [activeEntry]);
-
   const grammarPrompt = useMemo<GrammarPrompt | null>(() => {
     if (!activeEntry) {
       return null;
@@ -476,6 +471,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setPendingSessionComplete(false);
     setLetterMistakes(0);
     setLetterFeedback(null);
+    setBlockedLetterTileIds([]);
     pickNextEntry(activeEntry?.id);
   };
 
@@ -488,6 +484,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setPendingSessionComplete(false);
     setLetterMistakes(0);
     setLetterFeedback(null);
+    setBlockedLetterTileIds([]);
   };
 
   useEffect(() => {
@@ -496,6 +493,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       setLetterProgress([]);
       setLetterMistakes(0);
       setLetterFeedback(null);
+      setBlockedLetterTileIds([]);
       return;
     }
     const target = Array.from(activeEntry.german.replace(/[^\p{L}]/gu, ""));
@@ -503,6 +501,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setLetterProgress([]);
     setLetterMistakes(0);
     setLetterFeedback(null);
+    setBlockedLetterTileIds([]);
   }, [activeEntry, gameMode]);
 
   useEffect(() => {
@@ -534,7 +533,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
   }, [activeEntry]);
 
   const handleLetterPick = (tile: LetterTile) => {
-    if (!activeEntry || tile.used || resultCard) {
+    if (!activeEntry || tile.used || blockedLetterTileIds.includes(tile.id) || resultCard) {
       return;
     }
     const expectedLetter = targetLetters[letterProgress.length];
@@ -542,8 +541,8 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       return;
     }
     if (tile.value !== expectedLetter) {
-      setLetterTiles((current) =>
-        current.map((item) => (item.id === tile.id ? { ...item, used: true } : item)),
+      setBlockedLetterTileIds((current) =>
+        current.includes(tile.id) ? current : [...current, tile.id]
       );
       const nextMistakes = letterMistakes + 1;
       setLetterMistakes(nextMistakes);
@@ -564,6 +563,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       current.map((item) => (item.id === tile.id ? { ...item, used: true } : item)),
     );
     setLetterFeedback(null);
+    setBlockedLetterTileIds([]);
     setLetterProgress((current) => {
       const next = [...current, tile.value];
       if (next.length === targetLetters.length) {
@@ -696,20 +696,6 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
               </button>
             </div>
 
-            {activeEntryGrammarFacts.length > 0 ? (
-              <div className="learning-grammar">
-                <p className="learning-grammar__title">Grammar snapshot</p>
-                <div className="learning-grammar__grid">
-                  {activeEntryGrammarFacts.map((fact) => (
-                    <div key={fact.label} className="learning-grammar__item">
-                      <span>{fact.label}</span>
-                      <strong>{fact.value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             {gameMode === "multiple-choice" && activeEntry ? (
               <div className="game-card game-card--compact">
                 <p className="game-card__prompt">Choose the correct translation.</p>
@@ -814,7 +800,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                       type="button"
                       className="letter-button"
                       onClick={() => handleLetterPick(tile)}
-                      disabled={tile.used || Boolean(resultCard)}
+                      disabled={tile.used || blockedLetterTileIds.includes(tile.id) || Boolean(resultCard)}
                     >
                       {tile.value}
                     </button>

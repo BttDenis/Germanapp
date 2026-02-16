@@ -19,6 +19,8 @@ const DEFAULT_IMAGE_QUALITY = "low";
 const DEFAULT_IMAGE_SIZE = "1024x1024";
 const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
+const DEFAULT_TTS_INSTRUCTIONS =
+  "Speak in clear Standard German (Hochdeutsch). Use German pronunciation only and do not anglicize words.";
 
 const loadDotEnv = async () => {
   const envPath = path.resolve(PROJECT_ROOT, ".env");
@@ -72,6 +74,7 @@ const {
   OPENAI_IMAGE_SIZE = DEFAULT_IMAGE_SIZE,
   OPENAI_TTS_MODEL = DEFAULT_TTS_MODEL,
   OPENAI_TTS_VOICE = DEFAULT_TTS_VOICE,
+  OPENAI_TTS_INSTRUCTIONS = DEFAULT_TTS_INSTRUCTIONS,
   IMAGE_STORAGE_PATH = DEFAULT_IMAGE_DIR,
   PUBLIC_IMAGE_BASE_URL = "",
   PUBLIC_AUDIO_BASE_URL = "",
@@ -744,16 +747,36 @@ app.post("/api/llm/voice", requireLlmToken, async (req, res) => {
     return;
   }
 
-  const response = await fetch(`${openAiBaseUrl}/audio/speech`, {
-    method: "POST",
-    headers: buildOpenAiHeaders(),
-    body: JSON.stringify({
-      model,
-      input: german,
-      voice,
-      format: "mp3",
-    }),
+  const sanitizedGerman = sanitizeText(german);
+  const ttsInstructions = sanitizeText(OPENAI_TTS_INSTRUCTIONS) || DEFAULT_TTS_INSTRUCTIONS;
+  const requestVoice = async (requestPayload) =>
+    fetch(`${openAiBaseUrl}/audio/speech`, {
+      method: "POST",
+      headers: buildOpenAiHeaders(),
+      body: JSON.stringify(requestPayload),
+    });
+
+  const basePayload = {
+    model,
+    input: sanitizedGerman,
+    voice,
+    format: "mp3",
+  };
+
+  let response = await requestVoice({
+    ...basePayload,
+    instructions: ttsInstructions,
   });
+  if (!response.ok) {
+    const details = await formatUpstreamError(response);
+    const shouldRetry = details.toLowerCase().includes("unknown parameter") && details.includes("instructions");
+    if (shouldRetry) {
+      response = await requestVoice(basePayload);
+    } else {
+      res.status(502).json({ error: `Audio generation failed (${details}).` });
+      return;
+    }
+  }
 
   if (!response.ok) {
     const details = await formatUpstreamError(response);

@@ -19,6 +19,7 @@ const DEFAULT_IMAGE_QUALITY = "low";
 const DEFAULT_IMAGE_SIZE = "1024x1024";
 const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
+const DEFAULT_MEDIA_BACKUP_TO_MONGO = "true";
 const DEFAULT_TTS_INSTRUCTIONS =
   "Speak in clear Standard German (Hochdeutsch). Use German pronunciation only and do not anglicize words.";
 
@@ -75,6 +76,7 @@ const {
   OPENAI_TTS_MODEL = DEFAULT_TTS_MODEL,
   OPENAI_TTS_VOICE = DEFAULT_TTS_VOICE,
   OPENAI_TTS_INSTRUCTIONS = DEFAULT_TTS_INSTRUCTIONS,
+  MEDIA_BACKUP_TO_MONGO = DEFAULT_MEDIA_BACKUP_TO_MONGO,
   IMAGE_STORAGE_PATH = DEFAULT_IMAGE_DIR,
   PUBLIC_IMAGE_BASE_URL = "",
   PUBLIC_AUDIO_BASE_URL = "",
@@ -104,6 +106,29 @@ const uploadDir = path.isAbsolute(IMAGE_STORAGE_PATH)
   : path.resolve(PROJECT_ROOT, IMAGE_STORAGE_PATH);
 await mkdir(uploadDir, { recursive: true });
 app.use("/uploads", express.static(uploadDir));
+app.get("/uploads/:fileName", async (req, res, next) => {
+  try {
+    const fileName = sanitizeText(req.params.fileName);
+    if (!fileName) {
+      res.status(404).json({ error: "Asset not found." });
+      return;
+    }
+
+    const asset = await findAssetByFileName(fileName);
+    const buffer = toMongoAssetBuffer(asset?.content);
+    if (!asset || !buffer) {
+      res.status(404).json({ error: "Asset not found." });
+      return;
+    }
+
+    const mime = sanitizeText(asset.mime) || "application/octet-stream";
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+});
 
 const client = new MongoClient(MONGODB_URI);
 await client.connect();
@@ -114,6 +139,7 @@ const imageAssets = db.collection("imageAssets");
 const audioAssets = db.collection("audioAssets");
 const llmApiKey = LLM_API_KEY || OPENAI_API_KEY;
 const openAiBaseUrl = String(OPENAI_API_BASE_URL || DEFAULT_OPENAI_API_BASE_URL).replace(/\/$/, "");
+const shouldBackupMediaToMongo = String(MEDIA_BACKUP_TO_MONGO).toLowerCase() !== "false";
 
 const isAuthorized = (req, expectedToken) => {
   if (!expectedToken) {
@@ -286,6 +312,8 @@ const toSafeSlug = (value) =>
     .replace(/(^-|-$)/g, "")
     .slice(0, 40);
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const MEDIA_EXTENSION_BY_MIME = {
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
@@ -342,6 +370,39 @@ const toSafeAssetExt = (mime, fallbackExt) => {
     .replace(/[^a-z0-9]/g, "") || "bin";
 };
 
+const toMongoAssetBuffer = (value) => {
+  if (!value) {
+    return null;
+  }
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+  if (typeof value === "object" && value?._bsontype === "Binary" && value.buffer) {
+    return Buffer.from(value.buffer);
+  }
+  return null;
+};
+
+const findAssetByFileName = async (fileName) => {
+  const safeFileName = sanitizeText(fileName);
+  if (!safeFileName) {
+    return null;
+  }
+  const escapedName = escapeRegex(safeFileName);
+  const byFileName = { fileName: safeFileName };
+  const byUrlSuffix = { url: { $regex: new RegExp(`/${escapedName}$`) } };
+  const query = { $or: [byFileName, byUrlSuffix] };
+
+  const [imageAsset, audioAsset] = await Promise.all([
+    imageAssets.findOne(query, { sort: { createdAt: -1 } }),
+    audioAssets.findOne(query, { sort: { createdAt: -1 } }),
+  ]);
+  return imageAsset ?? audioAsset ?? null;
+};
+
 const saveAssetBuffer = async ({
   req,
   buffer,
@@ -361,12 +422,17 @@ const saveAssetBuffer = async ({
 
   const baseUrl = resolvePublicAssetBaseUrl(req, configuredBaseUrl);
   const url = `${baseUrl}/${fileName}`;
+  const canStoreInMongo = shouldBackupMediaToMongo && buffer.length <= 12 * 1024 * 1024;
 
   await collection.insertOne({
     word: german,
     model,
+    fileName,
     url,
     mime,
+    sizeBytes: buffer.length,
+    storedInMongo: canStoreInMongo,
+    ...(canStoreInMongo ? { content: buffer } : {}),
     createdAt: new Date().toISOString(),
   });
 
@@ -387,24 +453,18 @@ const saveUploadedAsset = async ({
   if (!parsedDataUrl) {
     return { error: "Invalid dataUrl format.", status: 400 };
   }
-
-  const fileName = `${toSafeSlug(german || defaultWord)}-${Date.now()}-${toSafeSlug(model)}.${parsedDataUrl.ext}`;
-  const filePath = path.join(uploadDir, fileName);
-
-  await writeFile(filePath, Buffer.from(parsedDataUrl.base64, "base64"));
-
-  const baseUrl = resolvePublicAssetBaseUrl(req, configuredBaseUrl);
-  const url = `${baseUrl}/${fileName}`;
-
-  await collection.insertOne({
-    word: german,
+  const buffer = Buffer.from(parsedDataUrl.base64, "base64");
+  return saveAssetBuffer({
+    req,
+    buffer,
+    german,
     model,
-    url,
     mime: parsedDataUrl.mime,
-    createdAt: new Date().toISOString(),
+    defaultWord,
+    configuredBaseUrl,
+    collection,
+    fallbackExt: parsedDataUrl.ext,
   });
-
-  return { url, status: 200 };
 };
 
 const formatUpstreamError = async (response) => {

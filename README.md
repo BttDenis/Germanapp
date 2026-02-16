@@ -55,6 +55,7 @@ Backend variables:
 - `IMAGE_UPLOAD_TOKEN`: bearer token for `/api/images`.
 - `AUDIO_UPLOAD_TOKEN`: bearer token for `/api/audio` (falls back to `IMAGE_UPLOAD_TOKEN`).
 - `IMAGE_STORAGE_PATH`: folder used for uploaded files (`./uploads` default).
+- `MEDIA_BACKUP_TO_MONGO`: store uploaded/generated media bytes in MongoDB for `/uploads` fallback (`true` default).
 - `PUBLIC_IMAGE_BASE_URL`: optional public base URL for uploaded images.
 - `PUBLIC_AUDIO_BASE_URL`: optional public base URL for uploaded audio.
 - `CORS_ORIGIN`: comma-separated allowlist (example: `https://app.example.com`).

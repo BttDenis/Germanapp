@@ -9,14 +9,14 @@ import { WordEntry } from "../types/wordEntry";
 import "./LearningScreen.css";
 
 const SESSION_WORD_LIMIT = 10;
-const GAME_MODES: GameMode[] = ["multiple-choice", "fill-blank", "letter-select"];
+const GAME_MODES: GameMode[] = ["multiple-choice", "fill-blank", "letter-select", "grammar-choice"];
 const LETTER_MISTAKE_LIMIT = 2;
 
 type LearningScreenProps = {
   entries: WordEntry[];
 };
 
-type GameMode = "multiple-choice" | "fill-blank" | "letter-select";
+type GameMode = "multiple-choice" | "fill-blank" | "letter-select" | "grammar-choice";
 
 type SessionStats = {
   reviewed: number;
@@ -39,6 +39,27 @@ type MultipleChoiceOption = {
   label: string;
 };
 
+type GrammarFieldKey =
+  | "nounPlural"
+  | "nounGenitive"
+  | "verbThirdPerson"
+  | "verbPast"
+  | "verbParticipleIi"
+  | "verbAuxiliary"
+  | "adjectiveComparative"
+  | "adjectiveSuperlative";
+
+type GrammarFact = {
+  label: string;
+  value: string;
+};
+
+type GrammarPrompt = {
+  field: GrammarFieldKey;
+  question: string;
+  answer: string;
+};
+
 const shuffle = <T,>(items: T[]) => {
   return [...items].sort(() => Math.random() - 0.5);
 };
@@ -56,6 +77,133 @@ const normalizeGermanAnswer = (value: string) =>
     .toLocaleLowerCase()
     .replace(/^(der|die|das)\s+/i, "")
     .replace(/[^\p{L}\p{N}]/gu, "");
+
+const normalizeAnswer = (value: string | null | undefined) => (value ?? "").trim().toLocaleLowerCase();
+
+const toDisplayValue = (value: string | null | undefined) => {
+  const normalized = (value ?? "").trim();
+  return normalized || "Not set";
+};
+
+const getGrammarFieldValue = (entry: WordEntry, field: GrammarFieldKey): string => {
+  switch (field) {
+    case "nounPlural":
+      return (entry.nounPlural ?? "").trim();
+    case "nounGenitive":
+      return (entry.nounGenitive ?? "").trim();
+    case "verbThirdPerson":
+      return (entry.verbThirdPerson ?? "").trim();
+    case "verbPast":
+      return (entry.verbPast ?? "").trim();
+    case "verbParticipleIi":
+      return (entry.verbParticipleIi ?? "").trim();
+    case "verbAuxiliary":
+      return (entry.verbAuxiliary ?? "").trim();
+    case "adjectiveComparative":
+      return (entry.adjectiveComparative ?? "").trim();
+    case "adjectiveSuperlative":
+      return (entry.adjectiveSuperlative ?? "").trim();
+    default:
+      return "";
+  }
+};
+
+const getGrammarFacts = (entry: WordEntry, includeMissing = false): GrammarFact[] => {
+  if (entry.partOfSpeech === "noun") {
+    const facts: GrammarFact[] = [
+      { label: "Plural", value: toDisplayValue(entry.nounPlural) },
+      { label: "Genitive", value: toDisplayValue(entry.nounGenitive) },
+    ];
+    return includeMissing ? facts : facts.filter((fact) => fact.value !== "Not set");
+  }
+  if (entry.partOfSpeech === "verb") {
+    const facts: GrammarFact[] = [
+      { label: "3rd person", value: toDisplayValue(entry.verbThirdPerson) },
+      { label: "Past", value: toDisplayValue(entry.verbPast) },
+      { label: "Participle II", value: toDisplayValue(entry.verbParticipleIi) },
+      { label: "Auxiliary", value: toDisplayValue(entry.verbAuxiliary) },
+    ];
+    return includeMissing ? facts : facts.filter((fact) => fact.value !== "Not set");
+  }
+  if (entry.partOfSpeech === "adj") {
+    const facts: GrammarFact[] = [
+      { label: "Comparative", value: toDisplayValue(entry.adjectiveComparative) },
+      { label: "Superlative", value: toDisplayValue(entry.adjectiveSuperlative) },
+    ];
+    return includeMissing ? facts : facts.filter((fact) => fact.value !== "Not set");
+  }
+  return [];
+};
+
+const buildGrammarPrompt = (entry: WordEntry): GrammarPrompt | null => {
+  if (entry.partOfSpeech === "noun") {
+    if ((entry.nounPlural ?? "").trim()) {
+      return {
+        field: "nounPlural",
+        question: `Choose the plural form of "${entry.article ? `${entry.article} ` : ""}${entry.german}".`,
+        answer: entry.nounPlural ?? "",
+      };
+    }
+    if ((entry.nounGenitive ?? "").trim()) {
+      return {
+        field: "nounGenitive",
+        question: `Choose the genitive form of "${entry.article ? `${entry.article} ` : ""}${entry.german}".`,
+        answer: entry.nounGenitive ?? "",
+      };
+    }
+    return null;
+  }
+
+  if (entry.partOfSpeech === "verb") {
+    if ((entry.verbParticipleIi ?? "").trim()) {
+      return {
+        field: "verbParticipleIi",
+        question: `Choose the participle II form of "${entry.german}".`,
+        answer: entry.verbParticipleIi ?? "",
+      };
+    }
+    if ((entry.verbPast ?? "").trim()) {
+      return {
+        field: "verbPast",
+        question: `Choose the past (Prateritum) form of "${entry.german}".`,
+        answer: entry.verbPast ?? "",
+      };
+    }
+    if ((entry.verbThirdPerson ?? "").trim()) {
+      return {
+        field: "verbThirdPerson",
+        question: `Choose the 3rd person singular present form of "${entry.german}".`,
+        answer: entry.verbThirdPerson ?? "",
+      };
+    }
+    if ((entry.verbAuxiliary ?? "").trim()) {
+      return {
+        field: "verbAuxiliary",
+        question: `Choose the auxiliary verb used with "${entry.german}" in Perfekt.`,
+        answer: entry.verbAuxiliary ?? "",
+      };
+    }
+    return null;
+  }
+
+  if (entry.partOfSpeech === "adj") {
+    if ((entry.adjectiveComparative ?? "").trim()) {
+      return {
+        field: "adjectiveComparative",
+        question: `Choose the comparative form of "${entry.german}".`,
+        answer: entry.adjectiveComparative ?? "",
+      };
+    }
+    if ((entry.adjectiveSuperlative ?? "").trim()) {
+      return {
+        field: "adjectiveSuperlative",
+        question: `Choose the superlative form of "${entry.german}".`,
+        answer: entry.adjectiveSuperlative ?? "",
+      };
+    }
+  }
+  return null;
+};
 
 const pickWeightedEntry = (
   candidates: WordEntry[],
@@ -166,8 +314,16 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     setLetterMistakes(0);
     setLetterFeedback(null);
     setGameMode((currentMode) => {
-      const options = GAME_MODES.filter((mode) => mode !== currentMode);
-      return options[Math.floor(Math.random() * options.length)] ?? currentMode;
+      const supportsGrammarMode = Boolean(buildGrammarPrompt(next));
+      const allowedModes = supportsGrammarMode
+        ? GAME_MODES
+        : GAME_MODES.filter((mode) => mode !== "grammar-choice");
+      const options = allowedModes.filter((mode) => mode !== currentMode);
+      return (
+        options[Math.floor(Math.random() * options.length)] ??
+        allowedModes[0] ??
+        currentMode
+      );
     });
   };
 
@@ -232,6 +388,14 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     handleReview(isCorrect);
   };
 
+  const handleGrammarChoice = (selected: string) => {
+    if (!grammarPrompt) {
+      return;
+    }
+    const isCorrect = normalizeAnswer(selected) === normalizeAnswer(grammarPrompt.answer);
+    handleReview(isCorrect);
+  };
+
   const multipleChoiceOptions = useMemo<MultipleChoiceOption[]>(() => {
     if (!activeEntry) {
       return [];
@@ -244,6 +408,58 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       label: entry.english || entry.german,
     }));
   }, [activeEntry, entries]);
+
+  const activeEntryGrammarFacts = useMemo<GrammarFact[]>(() => {
+    if (!activeEntry) {
+      return [];
+    }
+    return getGrammarFacts(activeEntry);
+  }, [activeEntry]);
+
+  const grammarPrompt = useMemo<GrammarPrompt | null>(() => {
+    if (!activeEntry) {
+      return null;
+    }
+    return buildGrammarPrompt(activeEntry);
+  }, [activeEntry]);
+
+  const grammarChoiceOptions = useMemo<string[]>(() => {
+    if (!activeEntry || !grammarPrompt) {
+      return [];
+    }
+
+    const answer = grammarPrompt.answer.trim();
+    if (!answer) {
+      return [];
+    }
+
+    if (grammarPrompt.field === "verbAuxiliary") {
+      return shuffle(Array.from(new Set([answer, "haben", "sein"])));
+    }
+
+    const distractors = shuffle(
+      entries
+        .filter((entry) => entry.id !== activeEntry.id && entry.partOfSpeech === activeEntry.partOfSpeech)
+        .map((entry) => getGrammarFieldValue(entry, grammarPrompt.field))
+        .map((value) => value.trim())
+        .filter((value) => value && normalizeAnswer(value) !== normalizeAnswer(answer)),
+    ).slice(0, 3);
+
+    return shuffle(Array.from(new Set([answer, ...distractors])));
+  }, [activeEntry, entries, grammarPrompt]);
+
+  const resultEntryGrammarFacts = useMemo<GrammarFact[]>(() => {
+    if (!resultCard) {
+      return [];
+    }
+    return getGrammarFacts(resultCard.entry, true);
+  }, [resultCard]);
+
+  useEffect(() => {
+    if (gameMode === "grammar-choice" && !grammarPrompt) {
+      setGameMode("multiple-choice");
+    }
+  }, [gameMode, grammarPrompt]);
 
   const sessionAccuracy = sessionStats.reviewed
     ? Math.round((sessionStats.correct / sessionStats.reviewed) * 100)
@@ -459,6 +675,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                   {gameMode === "multiple-choice" && "Multiple choice"}
                   {gameMode === "fill-blank" && "Write the word"}
                   {gameMode === "letter-select" && "Build the word"}
+                  {gameMode === "grammar-choice" && "Grammar challenge"}
                 </h3>
               </div>
             </div>
@@ -478,6 +695,20 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 Skip
               </button>
             </div>
+
+            {activeEntryGrammarFacts.length > 0 ? (
+              <div className="learning-grammar">
+                <p className="learning-grammar__title">Grammar snapshot</p>
+                <div className="learning-grammar__grid">
+                  {activeEntryGrammarFacts.map((fact) => (
+                    <div key={fact.label} className="learning-grammar__item">
+                      <span>{fact.label}</span>
+                      <strong>{fact.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {gameMode === "multiple-choice" && activeEntry ? (
               <div className="game-card game-card--compact">
@@ -522,6 +753,31 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                     Check answer
                   </button>
                 </form>
+              </div>
+            ) : null}
+
+            {gameMode === "grammar-choice" && activeEntry && grammarPrompt ? (
+              <div className="game-card game-card--compact">
+                <div className="game-card__translation">
+                  {activeEntry.article ? `${activeEntry.article} ` : ""}
+                  {activeEntry.german}
+                  {" - "}
+                  {activeEntry.english}
+                </div>
+                <p className="game-card__prompt">{grammarPrompt.question}</p>
+                <div className="choice-grid">
+                  {grammarChoiceOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className="choice-button"
+                      onClick={() => handleGrammarChoice(option)}
+                      disabled={Boolean(resultCard)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
 
@@ -599,6 +855,19 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 {resultCard.entry.german}
               </h3>
               <p className="learning-result__translation">{resultCard.entry.english}</p>
+              {resultEntryGrammarFacts.length > 0 ? (
+                <div className="learning-grammar learning-grammar--result">
+                  <p className="learning-grammar__title">Grammar details</p>
+                  <div className="learning-grammar__grid">
+                    {resultEntryGrammarFacts.map((fact) => (
+                      <div key={fact.label} className="learning-grammar__item">
+                        <span>{fact.label}</span>
+                        <strong>{fact.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="learning-result__examples">
                 <div>
                   <p className="learning-result__example-label">Example</p>

@@ -5,6 +5,7 @@ import { DictionaryScreen } from "./components/DictionaryScreen";
 import { LearningScreen } from "./components/LearningScreen";
 import { generateLlmCard } from "./services/llmCardGenerator";
 import { generateLlmImage } from "./services/llmImageGenerator";
+import { generateLlmVoice } from "./services/llmVoiceGenerator";
 import {
   WORD_ENTRIES_STORAGE_KEY,
   clearWordEntries,
@@ -146,9 +147,10 @@ export const App = () => {
       regenerate: true,
     });
     let imageUrl = entry.imageUrl ?? null;
+    let audioUrl = entry.audioUrl ?? null;
 
-    try {
-      const imageResult = await generateLlmImage({
+    const [imageResult, voiceResult] = await Promise.allSettled([
+      generateLlmImage({
         german: generated.draft.german,
         context: {
           english: generated.draft.english,
@@ -160,10 +162,22 @@ export const App = () => {
           notes: generated.draft.notes,
         },
         useCache: false,
-      });
-      imageUrl = imageResult.imageUrl;
-    } catch (error) {
-      console.warn("Image regeneration failed:", error);
+      }),
+      generateLlmVoice({
+        german: generated.draft.german,
+      }),
+    ]);
+
+    if (imageResult.status === "fulfilled") {
+      imageUrl = imageResult.value.imageUrl;
+    } else {
+      console.warn("Image regeneration failed:", imageResult.reason);
+    }
+
+    if (voiceResult.status === "fulfilled") {
+      audioUrl = voiceResult.value.audioUrl;
+    } else {
+      console.warn("Audio regeneration failed:", voiceResult.reason);
     }
 
     const updatedEntry: WordEntry = {
@@ -171,7 +185,7 @@ export const App = () => {
       ...generated.draft,
       notes: generated.draft.notes ?? "",
       imageUrl,
-      audioUrl: entry.audioUrl ?? null,
+      audioUrl,
       source: "llm",
       llmGeneratedAt: generated.llmGeneratedAt,
       llmModel: generated.llmModel,

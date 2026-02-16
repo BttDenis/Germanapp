@@ -34,6 +34,25 @@ type BatchQueueItem = {
   status: "pending" | "saved" | "skipped";
 };
 
+const normalizeLookupGerman = (value: string) =>
+  normalizeGerman(value)
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/^(der|die|das)\s+/i, "");
+
+const findExistingImageEntry = (entries: WordEntry[], german: string): WordEntry | null => {
+  const normalizedGerman = normalizeLookupGerman(german);
+  if (!normalizedGerman) {
+    return null;
+  }
+  return (
+    entries.find(
+      (entry) =>
+        Boolean(entry.imageUrl) && normalizeLookupGerman(entry.german) === normalizedGerman
+    ) ?? null
+  );
+};
+
 export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreenProps) => {
   const [inputText, setInputText] = useState("");
   const [inputLanguage, setInputLanguage] = useState<"de" | "en">("de");
@@ -50,6 +69,7 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
     generatedAt: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mediaNotice, setMediaNotice] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
@@ -67,6 +87,7 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
   const handleGenerate = async (regenerate = false) => {
     setIsGenerating(true);
     setError(null);
+    setMediaNotice(null);
     setMediaError(null);
     setImageState(null);
     setAudioState(null);
@@ -80,28 +101,45 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
       setDraft(generated.draft);
       setLlmMeta({ model: generated.llmModel, generatedAt: generated.llmGeneratedAt });
 
+      const mediaErrors: string[] = [];
+      const mediaNotices: string[] = [];
+      const existingImageEntry = findExistingImageEntry(getWordEntries(), generated.draft.german);
+
+      const imagePromise = existingImageEntry?.imageUrl
+        ? null
+        : generateLlmImage({
+            german: generated.draft.german,
+            context: {
+              english: generated.draft.english,
+              sense: generated.draft.sense,
+              partOfSpeech: generated.draft.partOfSpeech,
+              article: generated.draft.article,
+              exampleDe: generated.draft.exampleDe,
+              exampleEn: generated.draft.exampleEn,
+              notes: generated.draft.notes,
+            },
+          });
+
+      if (existingImageEntry?.imageUrl) {
+        setImageState({
+          url: existingImageEntry.imageUrl,
+          model: existingImageEntry.llmModel ?? "existing-image",
+          generatedAt: existingImageEntry.llmGeneratedAt ?? existingImageEntry.updatedAt,
+        });
+        mediaNotices.push(
+          `Image already exists for "${generated.draft.german}" in your dictionary. Reusing existing image.`
+        );
+      }
+
       const [imageResult, voiceResult] = await Promise.allSettled([
-        generateLlmImage({
-          german: generated.draft.german,
-          context: {
-            english: generated.draft.english,
-            sense: generated.draft.sense,
-            partOfSpeech: generated.draft.partOfSpeech,
-            article: generated.draft.article,
-            exampleDe: generated.draft.exampleDe,
-            exampleEn: generated.draft.exampleEn,
-            notes: generated.draft.notes,
-          },
-        }),
+        imagePromise,
         generateLlmVoice({ german: generated.draft.german }),
       ]);
 
-      const mediaErrors: string[] = [];
-
-      if (imageResult.status === "fulfilled") {
+      if (imageResult.status === "fulfilled" && imageResult.value) {
         const image = imageResult.value;
         setImageState({ url: image.imageUrl, model: image.llmModel, generatedAt: image.llmGeneratedAt });
-      } else {
+      } else if (imageResult.status === "rejected") {
         mediaErrors.push(
           `Image: ${imageResult.reason instanceof Error ? imageResult.reason.message : "generation failed"}.`
         );
@@ -118,6 +156,9 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
 
       if (mediaErrors.length > 0) {
         setMediaError(mediaErrors.join(" "));
+      }
+      if (mediaNotices.length > 0) {
+        setMediaNotice(mediaNotices.join(" "));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
@@ -197,6 +238,13 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
     const existingGerman = new Set(
       savedEntries.map((entry) => normalizeGerman(entry.german).toLowerCase())
     );
+    const imageByGerman = new Map<string, string>();
+    savedEntries.forEach((entry) => {
+      const key = normalizeLookupGerman(entry.german);
+      if (key && entry.imageUrl) {
+        imageByGerman.set(key, entry.imageUrl);
+      }
+    });
     const { selected: baseEntries, availableCount } = pickRandomCommonWords(
       COMMON_WORD_BATCH_SIZE,
       existingGerman
@@ -212,6 +260,7 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
 
     const queuedEntries: BatchQueueItem[] = [];
     const mediaFailures: string[] = [];
+    let reusedImageCount = 0;
 
     try {
       for (let index = 0; index < baseEntries.length; index += 1) {
@@ -227,19 +276,25 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
           userText: baseEntry.german,
         });
 
+        const normalizedGerman = normalizeLookupGerman(generated.draft.german);
+        const existingImageUrl = normalizedGerman ? imageByGerman.get(normalizedGerman) ?? null : null;
+        const imagePromise = existingImageUrl
+          ? null
+          : generateLlmImage({
+              german: generated.draft.german,
+              context: {
+                english: generated.draft.english,
+                sense: generated.draft.sense,
+                partOfSpeech: generated.draft.partOfSpeech,
+                article: generated.draft.article,
+                exampleDe: generated.draft.exampleDe,
+                exampleEn: generated.draft.exampleEn,
+                notes: generated.draft.notes,
+              },
+            });
+
         const [imageResult, voiceResult] = await Promise.allSettled([
-          generateLlmImage({
-            german: generated.draft.german,
-            context: {
-              english: generated.draft.english,
-              sense: generated.draft.sense,
-              partOfSpeech: generated.draft.partOfSpeech,
-              article: generated.draft.article,
-              exampleDe: generated.draft.exampleDe,
-              exampleEn: generated.draft.exampleEn,
-              notes: generated.draft.notes,
-            },
-          }),
+          imagePromise,
           generateLlmVoice({ german: generated.draft.german }),
         ]);
 
@@ -253,9 +308,15 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
           llmModel: generated.llmModel,
         };
 
-        if (imageResult.status === "fulfilled") {
+        if (existingImageUrl) {
+          nextEntry.imageUrl = existingImageUrl;
+          reusedImageCount += 1;
+        } else if (imageResult.status === "fulfilled" && imageResult.value) {
           nextEntry.imageUrl = imageResult.value.imageUrl;
-        } else {
+          if (normalizedGerman && nextEntry.imageUrl) {
+            imageByGerman.set(normalizedGerman, nextEntry.imageUrl);
+          }
+        } else if (imageResult.status === "rejected") {
           mediaFailures.push(
             `Image for "${generated.draft.german}" failed: ${
               imageResult.reason instanceof Error ? imageResult.reason.message : "generation failed"
@@ -286,8 +347,12 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
       }
 
       const skippedNote = skippedCount > 0 ? ` Skipped ${skippedCount} already saved word(s).` : "";
+      const reusedImageNote =
+        reusedImageCount > 0 ? ` Reused ${reusedImageCount} image(s) already in your dictionary.` : "";
       setBatchQueue(queuedEntries);
-      setBatchMessage(`Generated ${queuedEntries.length} cards. Review and approve to save.${skippedNote}`);
+      setBatchMessage(
+        `Generated ${queuedEntries.length} cards. Review and approve to save.${skippedNote}${reusedImageNote}`
+      );
 
       if (mediaFailures.length > 0) {
         setBatchError(mediaFailures.join(" "));
@@ -353,6 +418,7 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
           </button>
         </div>
         {error ? <p className="add-word-screen__error" role="alert">{error}</p> : null}
+        {mediaNotice ? <p className="add-word-screen__success">{mediaNotice}</p> : null}
         {mediaError ? <p className="add-word-screen__error" role="alert">{mediaError}</p> : null}
       </section>
 

@@ -73,10 +73,16 @@
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #f8fafc;
+  color: #0f172a;
   padding: 7px 10px;
   text-align: left;
   font-size: 0.86rem;
   cursor: pointer;
+}
+
+.grammar-lab__saved-list button:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .grammar-lab__saved-list .grammar-lab__delete {

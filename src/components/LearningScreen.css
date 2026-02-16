@@ -85,6 +85,11 @@
   cursor: pointer;
 }
 
+.text-button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .learning-screen__stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -275,6 +280,12 @@
   outline-offset: 2px;
 }
 
+.choice-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .fill-prompt {
   padding: 18px 20px;
   border-radius: 16px;
@@ -296,6 +307,12 @@
   border-radius: 12px;
   border: 1px solid #cbd5f5;
   font-size: 1rem;
+}
+
+.fill-form input:disabled {
+  background: #e2e8f0;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .game-card--compact {

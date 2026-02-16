@@ -33,6 +33,11 @@ type LetterTile = {
   used: boolean;
 };
 
+type MultipleChoiceOption = {
+  id: string;
+  label: string;
+};
+
 const shuffle = <T,>(items: T[]) => {
   return [...items].sort(() => Math.random() - 0.5);
 };
@@ -42,6 +47,55 @@ const formatDateKey = (value: string | null) => {
     return null;
   }
   return new Date(value).toDateString();
+};
+
+const normalizeGermanAnswer = (value: string) =>
+  value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/^(der|die|das)\s+/i, "")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+
+const pickWeightedEntry = (
+  candidates: WordEntry[],
+  progressMap: Record<string, LearningProgressEntry>,
+): WordEntry => {
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  const todayKey = new Date().toDateString();
+  const getWeight = (entry: WordEntry) => {
+    const progress = progressMap[entry.id];
+    if (!progress) {
+      return 3.2;
+    }
+    let weight = 1 + (100 - progress.strength) / 35;
+    if (formatDateKey(progress.lastReviewedAt) !== todayKey) {
+      weight += 0.8;
+    }
+    if (progress.totalReviews < 3) {
+      weight += 0.5;
+    }
+    if (progress.correctStreak === 0) {
+      weight += 0.4;
+    }
+    return Math.max(0.2, weight);
+  };
+
+  const totalWeight = candidates.reduce((sum, entry) => sum + getWeight(entry), 0);
+  if (totalWeight <= 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  let threshold = Math.random() * totalWeight;
+  for (const entry of candidates) {
+    threshold -= getWeight(entry);
+    if (threshold <= 0) {
+      return entry;
+    }
+  }
+  return candidates[candidates.length - 1];
 };
 
 export const LearningScreen = ({ entries }: LearningScreenProps) => {
@@ -100,12 +154,15 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
       return;
     }
     const options = entries.filter((entry) => entry.id !== previousId);
-    const next = (options.length ? options : entries)[Math.floor(Math.random() * (options.length || entries.length))];
+    const next = pickWeightedEntry(options.length ? options : entries, progressMap);
     setActiveEntryId(next.id);
     setFillAnswer("");
     setResultCard(null);
     setPendingSessionComplete(false);
-    setGameMode(GAME_MODES[Math.floor(Math.random() * GAME_MODES.length)]);
+    setGameMode((currentMode) => {
+      const options = GAME_MODES.filter((mode) => mode !== currentMode);
+      return options[Math.floor(Math.random() * options.length)] ?? currentMode;
+    });
   };
 
   const handleReview = (isCorrect: boolean) => {
@@ -127,11 +184,11 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     }
   };
 
-  const handleMultipleChoice = (selected: string) => {
+  const handleMultipleChoice = (selectedId: string) => {
     if (!activeEntry) {
       return;
     }
-    const isCorrect = selected === activeEntry.english;
+    const isCorrect = selectedId === activeEntry.id;
     handleReview(isCorrect);
   };
 
@@ -140,20 +197,32 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
     if (!activeEntry) {
       return;
     }
-    const normalized = fillAnswer.trim().toLowerCase();
-    const isCorrect = normalized === activeEntry.german.trim().toLowerCase();
+    const normalized = normalizeGermanAnswer(fillAnswer);
+    const acceptedAnswers = new Set<string>([
+      normalizeGermanAnswer(activeEntry.german),
+      normalizeGermanAnswer(`${activeEntry.article ?? ""} ${activeEntry.german}`),
+    ]);
+    const isCorrect = acceptedAnswers.has(normalized);
     handleReview(isCorrect);
   };
 
-  const multipleChoiceOptions = useMemo(() => {
+  const multipleChoiceOptions = useMemo<MultipleChoiceOption[]>(() => {
     if (!activeEntry) {
       return [];
     }
     const distractors = shuffle(
       entries.filter((entry) => entry.id !== activeEntry.id && entry.english.trim() !== ""),
     ).slice(0, 3);
-    return shuffle([activeEntry, ...distractors]).map((entry) => entry.english);
+    return shuffle([activeEntry, ...distractors]).map((entry) => ({
+      id: entry.id,
+      label: entry.english || entry.german,
+    }));
   }, [activeEntry, entries]);
+
+  const sessionAccuracy = sessionStats.reviewed
+    ? Math.round((sessionStats.correct / sessionStats.reviewed) * 100)
+    : 0;
+  const sessionRemaining = Math.max(SESSION_WORD_LIMIT - sessionStats.reviewed, 0);
 
   const handleStartSession = () => {
     setSessionStats({ reviewed: 0, correct: 0 });
@@ -265,7 +334,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
             aria-label="Exit session"
             onClick={() => handleEndSession("Session ended early. Come back anytime.")}
           >
-            ✕
+            &times;
           </button>
           <div className="learning-screen__progressbar">
             <span
@@ -306,7 +375,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
             <article>
               <h3>Mastery</h3>
               <p>{summary.mastered} mastered</p>
-              <span>{summary.needsPractice} need practice</span>
+              <span>{summary.learning} learning, {summary.needsPractice} need practice</span>
             </article>
           </div>
         </>
@@ -342,7 +411,14 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 {sessionStats.reviewed}/{SESSION_WORD_LIMIT} reviewed
               </p>
               <span>{sessionStats.correct} correct</span>
-              <button type="button" className="text-button" onClick={() => pickNextEntry(activeEntry?.id)}>
+              <span>{sessionAccuracy}% accuracy</span>
+              <span>{sessionRemaining} remaining</span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => pickNextEntry(activeEntry?.id)}
+                disabled={Boolean(resultCard)}
+              >
                 Skip
               </button>
             </div>
@@ -357,12 +433,13 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                 <div className="choice-grid">
                   {multipleChoiceOptions.map((option) => (
                     <button
-                      key={option}
+                      key={option.id}
                       type="button"
                       className="choice-button"
-                      onClick={() => handleMultipleChoice(option)}
+                      onClick={() => handleMultipleChoice(option.id)}
+                      disabled={Boolean(resultCard)}
                     >
-                      {option}
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -379,8 +456,13 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                     value={fillAnswer}
                     onChange={(event) => setFillAnswer(event.target.value)}
                     placeholder="Type the German word"
+                    disabled={Boolean(resultCard)}
                   />
-                  <button type="submit" className="primary-button" disabled={!fillAnswer.trim()}>
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={!fillAnswer.trim() || Boolean(resultCard)}
+                  >
                     Check answer
                   </button>
                 </form>
@@ -397,7 +479,7 @@ export const LearningScreen = ({ entries }: LearningScreenProps) => {
                       key={`${letter}-${index}`}
                       className={`letter-slot ${index < letterProgress.length ? "letter-slot--filled" : ""}`}
                     >
-                      {index < letterProgress.length ? letter : "•"}
+                      {index < letterProgress.length ? letter : "_"}
                     </span>
                   ))}
                 </div>

@@ -167,6 +167,7 @@ app.get("/", (_req, res) => {
       audio: "/api/audio",
       llmCard: "/api/llm/card",
       llmGrammar: "/api/llm/grammar",
+      llmGrammarExercises: "/api/llm/grammar/exercises",
       llmGrammarWords: "/api/llm/grammar/words",
       llmImage: "/api/llm/image",
       llmVoice: "/api/llm/voice",
@@ -642,6 +643,29 @@ const normalizeGrammarPack = (payload, topic) => {
   };
 };
 
+const normalizeGrammarExercisesFromPayload = (payload, requestedCount) => {
+  const count = Math.max(2, Math.min(20, Number.parseInt(String(requestedCount ?? 6), 10) || 6));
+  const rawExercises = (Array.isArray(payload?.exercises) ? payload.exercises : [])
+    .slice(0, 40)
+    .map((exercise, index) => normalizeGrammarExercise(exercise, index))
+    .filter(Boolean);
+
+  const unique = [];
+  const seen = new Set();
+  rawExercises.forEach((exercise) => {
+    const key = `${sanitizeText(exercise.sentenceTemplate).toLocaleLowerCase()}|${sanitizeText(
+      exercise.baseWord
+    ).toLocaleLowerCase()}`;
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    unique.push(exercise);
+  });
+
+  return unique.slice(0, count);
+};
+
 const normalizeGrammarWordList = (payload, requestedCount) => {
   const count = Math.max(6, Math.min(30, Number.parseInt(String(requestedCount ?? 12), 10) || 12));
   const rawWords = sanitizeStringArray(payload?.words, { max: 80 });
@@ -728,6 +752,51 @@ const buildGrammarPrompt = ({
   ].join("\n");
 
   return { system, user };
+};
+
+const buildGrammarExercisesPrompt = ({
+  topic,
+  details,
+  level,
+  wordSource = "dictionary",
+  dictionaryWords = [],
+  freeWords = [],
+  existingExercises = [],
+  count = 6,
+}) => {
+  const targetCount = Math.max(2, Math.min(20, Number.parseInt(String(count ?? 6), 10) || 6));
+  const normalizedWordSource = wordSource === "free" ? "free" : "dictionary";
+  const fallbackWordSource =
+    normalizedWordSource === "dictionary" ? "free words (if provided)" : "dictionary words (if provided)";
+  const existingSignatures = existingExercises
+    .map((exercise) => `${sanitizeText(exercise.sentenceTemplate)} (${sanitizeText(exercise.baseWord)})`)
+    .filter(Boolean)
+    .slice(0, 60);
+
+  const system =
+    "You are a German grammar coach. Return valid JSON only. Generate additional fill-in-the-blank exercises.";
+
+  const user = [
+    `Topic: ${topic}`,
+    `Level: ${level || "auto"}`,
+    `Learner details: ${details || "none"}`,
+    `Word source mode: ${normalizedWordSource}`,
+    `Dictionary words: ${dictionaryWords.length > 0 ? dictionaryWords.join(", ") : "none"}`,
+    `Free/custom words: ${freeWords.length > 0 ? freeWords.join(", ") : "none"}`,
+    `Target new exercise count: ${targetCount}`,
+    `Existing exercise signatures (do not repeat): ${existingSignatures.length > 0 ? existingSignatures.join("; ") : "none"}`,
+    "Return JSON in exact shape:",
+    `{"exercises":[{"id":"","instruction":"","sentenceTemplate":"","baseWord":"","acceptedAnswers":[""],"explanation":"","topicTag":""}]}`,
+    "Rules:",
+    "- Generate NEW exercises only, avoid duplicates of existing signatures.",
+    "- Exercises must be fill-in-the-blank transformations using one blank placeholder: ____ .",
+    "- Keep language simple and practical.",
+    "- Each exercise must include baseWord and at least one accepted answer.",
+    `- Prioritize vocabulary from selected source (${normalizedWordSource}); fallback to ${fallbackWordSource}.`,
+    "- Output JSON only; no markdown or extra text.",
+  ].join("\n");
+
+  return { system, user, targetCount };
 };
 
 const buildGrammarWordListPrompt = ({ topic, details, level, count }) => {
@@ -930,6 +999,107 @@ app.post("/api/llm/grammar", requireLlmToken, async (req, res) => {
 
   res.json({
     pack,
+    llmModel: model,
+    llmGeneratedAt: new Date().toISOString(),
+    llmRawJson: content,
+  });
+});
+
+app.post("/api/llm/grammar/exercises", requireLlmToken, async (req, res) => {
+  if (!ensureLlmConfigured(res)) {
+    return;
+  }
+
+  const {
+    topic,
+    details = "",
+    level = "auto",
+    wordSource = "dictionary",
+    dictionaryWords = [],
+    freeWords = [],
+    existingExercises = [],
+    count = 6,
+    model = OPENAI_CHAT_MODEL,
+  } = req.body ?? {};
+
+  const sanitizedTopic = sanitizeText(topic);
+  if (!sanitizedTopic) {
+    res.status(400).json({ error: "topic is required." });
+    return;
+  }
+
+  const normalizedExistingExercises = (Array.isArray(existingExercises) ? existingExercises : [])
+    .slice(0, 60)
+    .map((exercise, index) => normalizeGrammarExercise(exercise, index))
+    .filter(Boolean);
+
+  const { system, user, targetCount } = buildGrammarExercisesPrompt({
+    topic: sanitizedTopic,
+    details: sanitizeText(details),
+    level: sanitizeText(level) || "auto",
+    wordSource: sanitizeText(wordSource) === "free" ? "free" : "dictionary",
+    dictionaryWords: sanitizeStringArray(dictionaryWords, { max: 50 }),
+    freeWords: sanitizeStringArray(freeWords, { max: 50 }),
+    existingExercises: normalizedExistingExercises,
+    count,
+  });
+
+  const response = await fetch(`${openAiBaseUrl}/chat/completions`, {
+    method: "POST",
+    headers: buildOpenAiHeaders(),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.4,
+    }),
+  });
+
+  if (!response.ok) {
+    const detailsMessage = await formatUpstreamError(response);
+    res.status(502).json({ error: `Grammar exercises generation failed (${detailsMessage}).` });
+    return;
+  }
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") {
+    res.status(502).json({ error: "Grammar exercises generation response missing content." });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    res.status(502).json({ error: "Grammar exercises generation returned invalid JSON." });
+    return;
+  }
+
+  const generatedExercises = normalizeGrammarExercisesFromPayload(parsed, targetCount);
+  const existingKeys = new Set(
+    normalizedExistingExercises.map(
+      (exercise) =>
+        `${sanitizeText(exercise.sentenceTemplate).toLocaleLowerCase()}|${sanitizeText(
+          exercise.baseWord
+        ).toLocaleLowerCase()}`
+    )
+  );
+  const uniqueExercises = generatedExercises.filter((exercise) => {
+    const key = `${sanitizeText(exercise.sentenceTemplate).toLocaleLowerCase()}|${sanitizeText(
+      exercise.baseWord
+    ).toLocaleLowerCase()}`;
+    if (!key || existingKeys.has(key)) {
+      return false;
+    }
+    existingKeys.add(key);
+    return true;
+  });
+
+  res.json({
+    exercises: uniqueExercises,
     llmModel: model,
     llmGeneratedAt: new Date().toISOString(),
     llmRawJson: content,

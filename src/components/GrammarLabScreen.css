@@ -170,6 +170,14 @@
   flex-wrap: wrap;
 }
 
+.grammar-lab__compact-field {
+  min-width: 120px;
+}
+
+.grammar-lab__compact-field input {
+  width: 100%;
+}
+
 .grammar-lab__actions {
   display: flex;
   gap: 10px;
@@ -289,6 +297,14 @@
 .grammar-lab__exercise-list {
   display: grid;
   gap: 10px;
+}
+
+.grammar-lab__exercise-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .grammar-lab__exercise {

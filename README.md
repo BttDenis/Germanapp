@@ -79,6 +79,7 @@ Detailed guide: `deploy.md`.
 - `PUT /api/words`
 - `POST /api/words/sync`
 - `POST /api/llm/card`
+- `POST /api/llm/grammar/exercises`
 - `POST /api/llm/image`
 - `POST /api/llm/voice`
 - `POST /api/llm/grammar/words`

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { generateLlmGrammarExercises } from "../services/llmGrammarExercisesGenerator";
 import { generateLlmGrammarPack } from "../services/llmGrammarGenerator";
 import { generateLlmGrammarWordList } from "../services/llmGrammarWordListGenerator";
 import { deleteGrammarPack, getSavedGrammarPacks, saveGrammarPack } from "../storage/grammarPackStorage";
-import { GrammarLevel, GrammarPack, SavedGrammarPack } from "../types/grammarPack";
+import { GrammarExercise, GrammarLevel, GrammarPack, SavedGrammarPack } from "../types/grammarPack";
 import { WordEntry } from "../types/wordEntry";
 import "./GrammarLabScreen.css";
 
@@ -17,6 +18,8 @@ type ExerciseFeedback = {
 };
 
 const normalizeAnswer = (value: string) => value.trim().toLocaleLowerCase();
+const makeExerciseKey = (exercise: Pick<GrammarExercise, "sentenceTemplate" | "baseWord">) =>
+  `${normalizeAnswer(exercise.sentenceTemplate)}|${normalizeAnswer(exercise.baseWord)}`;
 
 const LEVEL_OPTIONS: GrammarLevel[] = ["auto", "A1-A2", "B1", "B2-C1"];
 const WORD_SOURCE_OPTIONS = [
@@ -58,8 +61,11 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
   const [freeWordMode, setFreeWordMode] = useState<FreeWordMode>("manual");
   const [freeWords, setFreeWords] = useState("");
   const [freeWordsCount, setFreeWordsCount] = useState(12);
+  const [moreExercisesCount, setMoreExercisesCount] = useState(6);
+  const [showExerciseHints, setShowExerciseHints] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingWords, setIsGeneratingWords] = useState(false);
+  const [isGeneratingMoreExercises, setIsGeneratingMoreExercises] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [savedPacks, setSavedPacks] = useState<SavedGrammarPack[]>([]);
@@ -92,6 +98,7 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
     topic.trim().length > 0 &&
     !isGenerating &&
     !isGeneratingWords &&
+    !isGeneratingMoreExercises &&
     (!shouldUseFreeWords || freeWordMode === "llm" || freeWordList.length > 0);
 
   const resetExerciseState = (nextPack: GrammarPack | null) => {
@@ -106,7 +113,7 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
   const buildWordText = (words: string[]) => words.join(", ");
 
   const handleGenerateFreeWords = async () => {
-    const sanitizedTopic = topic.trim();
+    const sanitizedTopic = topic.trim() || pack?.topic?.trim() || "";
     if (!sanitizedTopic) {
       setError("Set a grammar topic first, then generate words.");
       return [];
@@ -131,6 +138,23 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
     }
   };
 
+  const resolveWordSourceContext = async () => {
+    let effectiveFreeWords = freeWordList;
+    if (shouldUseFreeWords && freeWordMode === "llm" && effectiveFreeWords.length === 0) {
+      effectiveFreeWords = await handleGenerateFreeWords();
+    }
+    if (shouldUseFreeWords && effectiveFreeWords.length === 0) {
+      throw new Error("No free words available. Add words manually or generate them with LLM.");
+    }
+
+    const effectiveWordSource: WordSourceMode =
+      wordSource === "dictionary" && !hasDictionaryWords && effectiveFreeWords.length > 0
+        ? "free"
+        : wordSource;
+
+    return { effectiveWordSource, effectiveFreeWords };
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
@@ -138,17 +162,7 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
 
     try {
       const contextualDetails = details.trim();
-      let effectiveFreeWords = freeWordList;
-      if (shouldUseFreeWords && freeWordMode === "llm" && effectiveFreeWords.length === 0) {
-        effectiveFreeWords = await handleGenerateFreeWords();
-      }
-      if (shouldUseFreeWords && effectiveFreeWords.length === 0) {
-        throw new Error("No free words available. Add words manually or generate them with LLM.");
-      }
-      const effectiveWordSource: WordSourceMode =
-        wordSource === "dictionary" && !hasDictionaryWords && effectiveFreeWords.length > 0
-          ? "free"
-          : wordSource;
+      const { effectiveWordSource, effectiveFreeWords } = await resolveWordSourceContext();
 
       const generated = await generateLlmGrammarPack({
         topic: topic.trim(),
@@ -167,6 +181,80 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
       setError(generationError instanceof Error ? generationError.message : "Grammar generation failed.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateMoreExercises = async () => {
+    if (!pack) {
+      return;
+    }
+
+    setIsGeneratingMoreExercises(true);
+    setError(null);
+    setSaveMessage(null);
+
+    try {
+      const { effectiveWordSource, effectiveFreeWords } = await resolveWordSourceContext();
+      const generated = await generateLlmGrammarExercises({
+        topic: pack.topic || topic.trim(),
+        details: details.trim(),
+        level,
+        wordSource: effectiveWordSource,
+        dictionaryWords,
+        freeWords: effectiveFreeWords,
+        existingExercises: pack.exercises,
+        count: moreExercisesCount,
+      });
+
+      const existingById = new Set(pack.exercises.map((exercise) => exercise.id));
+      const existingByKey = new Set(pack.exercises.map((exercise) => makeExerciseKey(exercise)));
+      const timestamp = Date.now();
+      const appended: GrammarExercise[] = [];
+
+      generated.exercises.forEach((exercise, index) => {
+        const key = makeExerciseKey(exercise);
+        if (existingByKey.has(key)) {
+          return;
+        }
+        existingByKey.add(key);
+        let nextId = exercise.id || `ex-more-${timestamp}-${index + 1}`;
+        while (existingById.has(nextId)) {
+          nextId = `${nextId}-${Math.random().toString(36).slice(2, 6)}`;
+        }
+        existingById.add(nextId);
+        appended.push({
+          ...exercise,
+          id: nextId,
+        });
+      });
+
+      if (appended.length === 0) {
+        setSaveMessage("No additional unique exercises were generated. Try changing count or topic details.");
+        return;
+      }
+
+      const nextPack: GrammarPack = {
+        ...pack,
+        exercises: [...pack.exercises, ...appended],
+      };
+      setPack(nextPack);
+      setExerciseAnswers((current) => {
+        const next = { ...current };
+        appended.forEach((exercise) => {
+          next[exercise.id] = next[exercise.id] ?? "";
+        });
+        return next;
+      });
+      setSaveMessage(`Added ${appended.length} new exercises to this pack.`);
+      setLlmMeta({ model: generated.llmModel, generatedAt: generated.llmGeneratedAt });
+    } catch (generationError) {
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "Generating additional exercises failed."
+      );
+    } finally {
+      setIsGeneratingMoreExercises(false);
     }
   };
 
@@ -385,6 +473,34 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
             <button type="button" className="grammar-lab__button grammar-lab__button--primary" onClick={handleGenerate} disabled={!canGenerate}>
               {isGenerating ? "Generating..." : "Generate Grammar Pack"}
             </button>
+            <div className="grammar-lab__inline-row">
+              <label className="field grammar-lab__compact-field">
+                <span>More exercises</span>
+                <input
+                  type="number"
+                  min={2}
+                  max={20}
+                  value={moreExercisesCount}
+                  onChange={(event) => {
+                    const parsed = Number.parseInt(event.target.value, 10);
+                    if (Number.isNaN(parsed)) {
+                      return;
+                    }
+                    setMoreExercisesCount(Math.max(2, Math.min(20, parsed)));
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="grammar-lab__button grammar-lab__button--ghost"
+                onClick={() => {
+                  void handleGenerateMoreExercises();
+                }}
+                disabled={!pack || isGeneratingMoreExercises || isGenerating || isGeneratingWords}
+              >
+                {isGeneratingMoreExercises ? "Adding exercises..." : "Generate more exercises"}
+              </button>
+            </div>
             <button type="button" className="grammar-lab__button grammar-lab__button--ghost" onClick={handleCheckAll} disabled={!pack}>
               Check all answers
             </button>
@@ -429,7 +545,7 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
             <h3>{pack.title}</h3>
             {llmMeta ? (
               <p>
-                {llmMeta.model} • {new Date(llmMeta.generatedAt).toLocaleString()}
+                {llmMeta.model} - {new Date(llmMeta.generatedAt).toLocaleString()}
               </p>
             ) : null}
           </header>
@@ -475,6 +591,17 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
 
           <article className="grammar-lab__block">
             <h4>Practice Exercises</h4>
+            <div className="grammar-lab__exercise-toolbar">
+              <label className="grammar-lab__toggle">
+                <input
+                  type="checkbox"
+                  checked={showExerciseHints}
+                  onChange={(event) => setShowExerciseHints(event.target.checked)}
+                />
+                <span>Show exercise hints</span>
+              </label>
+              <p className="grammar-lab__hint">Total exercises: {pack.exercises.length}</p>
+            </div>
             {pack.exercises.length === 0 ? (
               <p className="grammar-lab__hint">No exercises returned for this topic.</p>
             ) : (
@@ -513,7 +640,9 @@ export const GrammarLabScreen = ({ entries }: GrammarLabScreenProps) => {
                           {feedback.message}
                         </p>
                       ) : null}
-                      <p className="grammar-lab__explanation">{exercise.explanation}</p>
+                      {showExerciseHints ? (
+                        <p className="grammar-lab__explanation">{exercise.explanation}</p>
+                      ) : null}
                     </div>
                   );
                 })}

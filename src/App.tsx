@@ -140,6 +140,15 @@ export const App = () => {
     try {
       const imageResult = await generateLlmImage({
         german: generated.draft.german,
+        context: {
+          english: generated.draft.english,
+          sense: generated.draft.sense,
+          partOfSpeech: generated.draft.partOfSpeech,
+          article: generated.draft.article,
+          exampleDe: generated.draft.exampleDe,
+          exampleEn: generated.draft.exampleEn,
+          notes: generated.draft.notes,
+        },
         useCache: false,
       });
       imageUrl = imageResult.imageUrl;

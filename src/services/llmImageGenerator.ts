@@ -1,8 +1,19 @@
 import { getCachedImage, saveCachedImage } from "../storage/imageCacheStorage";
 import { buildLlmBackendHeaders, getLlmBackendEndpoint, parseErrorMessage } from "./llmBackendClient";
 
+export type LlmImageCardContext = {
+  english?: string | null;
+  sense?: string | null;
+  partOfSpeech?: "noun" | "verb" | "adj" | "other" | null;
+  article?: "der" | "die" | "das" | null;
+  exampleDe?: string | null;
+  exampleEn?: string | null;
+  notes?: string | null;
+};
+
 export type LlmImageGeneratorOptions = {
   german: string;
+  context?: LlmImageCardContext;
   model?: string;
   quality?: "low" | "medium" | "high";
   size?: "256x256" | "512x512" | "1024x1024";
@@ -21,11 +32,25 @@ const DEFAULT_IMAGE_QUALITY = "low";
 const DEFAULT_IMAGE_SIZE = "1024x1024";
 const IMAGE_ENDPOINT = "/api/llm/image";
 
+const normalizeText = (value: string | null | undefined) => (value ?? "").trim();
+
+const buildImageContextKey = (context: LlmImageCardContext | undefined): string =>
+  JSON.stringify({
+    english: normalizeText(context?.english),
+    sense: normalizeText(context?.sense),
+    partOfSpeech: context?.partOfSpeech ?? "",
+    article: context?.article ?? "",
+    exampleDe: normalizeText(context?.exampleDe),
+    exampleEn: normalizeText(context?.exampleEn),
+    notes: normalizeText(context?.notes),
+  });
+
 export const generateLlmImage = async (
   options: LlmImageGeneratorOptions
 ): Promise<LlmImageResult> => {
   const {
     german,
+    context,
     model = DEFAULT_IMAGE_MODEL,
     quality = DEFAULT_IMAGE_QUALITY,
     size = DEFAULT_IMAGE_SIZE,
@@ -36,8 +61,10 @@ export const generateLlmImage = async (
     throw new Error("German word is required to generate an image.");
   }
 
+  const contextKey = buildImageContextKey(context);
+
   if (useCache) {
-    const cached = getCachedImage(german, model);
+    const cached = getCachedImage(german, model, contextKey);
     if (cached) {
       return cached;
     }
@@ -49,6 +76,13 @@ export const generateLlmImage = async (
     headers: buildLlmBackendHeaders(),
     body: JSON.stringify({
       german,
+      english: context?.english,
+      sense: context?.sense,
+      partOfSpeech: context?.partOfSpeech,
+      article: context?.article,
+      exampleDe: context?.exampleDe,
+      exampleEn: context?.exampleEn,
+      notes: context?.notes,
       model,
       quality,
       size,
@@ -78,7 +112,7 @@ export const generateLlmImage = async (
   };
 
   if (useCache) {
-    saveCachedImage(german, result.llmModel, result);
+    saveCachedImage(german, result.llmModel, result, contextKey);
   }
 
   return result;

@@ -22,8 +22,10 @@ const getStorage = (): KeyValueStorage => {
 
 const storage = getStorage();
 
-const getCacheKey = (german: string, model: string) =>
-  `${german.trim().toLowerCase()}::${model.trim().toLowerCase()}`;
+const getCacheKey = (german: string, model: string, contextKey = "") =>
+  `${german.trim().toLowerCase()}::${model.trim().toLowerCase()}::${contextKey
+    .trim()
+    .toLowerCase()}`;
 
 const parseCache = (payload: string | null): Record<string, CachedImage> => {
   if (!payload) {
@@ -76,9 +78,13 @@ const pruneCache = (cache: Record<string, CachedImage>) => {
 };
 
 
-export const getCachedImage = (german: string, model: string): CachedImage | null => {
+export const getCachedImage = (
+  german: string,
+  model: string,
+  contextKey = ""
+): CachedImage | null => {
   const cache = readCache();
-  const key = getCacheKey(german, model);
+  const key = getCacheKey(german, model, contextKey);
   const cached = cache[key];
   if (!cached) {
     return null;
@@ -92,9 +98,14 @@ export const getCachedImage = (german: string, model: string): CachedImage | nul
   return cache[key];
 };
 
-export const saveCachedImage = (german: string, model: string, image: CachedImage) => {
+export const saveCachedImage = (
+  german: string,
+  model: string,
+  image: CachedImage,
+  contextKey = ""
+) => {
   const cache = readCache();
-  const key = getCacheKey(german, model);
+  const key = getCacheKey(german, model, contextKey);
   cache[key] = normalizeCacheEntry({ ...image, lastAccessed: Date.now() });
   pruneCache(cache);
   try {

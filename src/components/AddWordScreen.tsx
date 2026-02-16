@@ -81,7 +81,18 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
       setLlmMeta({ model: generated.llmModel, generatedAt: generated.llmGeneratedAt });
 
       const [imageResult, voiceResult] = await Promise.allSettled([
-        generateLlmImage({ german: generated.draft.german }),
+        generateLlmImage({
+          german: generated.draft.german,
+          context: {
+            english: generated.draft.english,
+            sense: generated.draft.sense,
+            partOfSpeech: generated.draft.partOfSpeech,
+            article: generated.draft.article,
+            exampleDe: generated.draft.exampleDe,
+            exampleEn: generated.draft.exampleEn,
+            notes: generated.draft.notes,
+          },
+        }),
         generateLlmVoice({ german: generated.draft.german }),
       ]);
 
@@ -217,7 +228,18 @@ export const AddWordScreen = ({ onEntrySaved, onBatchEntrySaved }: AddWordScreen
         });
 
         const [imageResult, voiceResult] = await Promise.allSettled([
-          generateLlmImage({ german: generated.draft.german }),
+          generateLlmImage({
+            german: generated.draft.german,
+            context: {
+              english: generated.draft.english,
+              sense: generated.draft.sense,
+              partOfSpeech: generated.draft.partOfSpeech,
+              article: generated.draft.article,
+              exampleDe: generated.draft.exampleDe,
+              exampleEn: generated.draft.exampleEn,
+              notes: generated.draft.notes,
+            },
+          }),
           generateLlmVoice({ german: generated.draft.german }),
         ]);
 

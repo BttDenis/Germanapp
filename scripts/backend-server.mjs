@@ -490,6 +490,41 @@ const buildCardPrompt = (inputLanguage, userText) => {
   return { system, user };
 };
 
+const buildImagePrompt = ({
+  german,
+  english,
+  sense,
+  partOfSpeech,
+  article,
+  exampleDe,
+  exampleEn,
+  notes,
+}) => {
+  const germanLabel = article ? `${article} ${german}` : german;
+  const contextLines = [
+    `Target German term: "${germanLabel}".`,
+    english ? `English meaning: "${english}".` : "",
+    sense ? `Intended sense: "${sense}".` : "",
+    partOfSpeech && partOfSpeech !== "other" ? `Part of speech: ${partOfSpeech}.` : "",
+    exampleDe ? `German example: "${exampleDe}".` : "",
+    exampleEn ? `English example: "${exampleEn}".` : "",
+    notes ? `Notes: "${notes}".` : "",
+  ].filter(Boolean);
+
+  return [
+    "Create one educational flashcard illustration for a German learner.",
+    ...contextLines,
+    "Depict the intended meaning in a single clear, literal scene with one dominant subject.",
+    "Prefer concrete objects/actions over symbolism and avoid mixed interpretations.",
+    "Style: clean, friendly digital illustration, visually simple and easy to recognize at small size.",
+    "Constraints:",
+    "- No text, letters, captions, logos, brands, or watermarks.",
+    "- No split panels, no collage, and no multiple unrelated scenes.",
+    "- Avoid public figures, copyrighted characters, and sensitive content.",
+    "- If the word is ambiguous, use the provided English meaning and sense as the priority.",
+  ].join("\n");
+};
+
 const requireLlmToken = requireToken(LLM_PROXY_TOKEN || WORD_SYNC_TOKEN);
 
 app.post("/api/llm/card", requireLlmToken, async (req, res) => {
@@ -563,6 +598,13 @@ app.post("/api/llm/image", requireLlmToken, async (req, res) => {
 
   const {
     german,
+    english = "",
+    sense = "",
+    partOfSpeech = "other",
+    article = null,
+    exampleDe = "",
+    exampleEn = "",
+    notes = "",
     model = OPENAI_IMAGE_MODEL,
     quality = OPENAI_IMAGE_QUALITY,
     size = OPENAI_IMAGE_SIZE,
@@ -573,7 +615,16 @@ app.post("/api/llm/image", requireLlmToken, async (req, res) => {
     return;
   }
 
-  const prompt = `Create a clean, friendly illustration that represents the German word or phrase: "${german}". Avoid text, logos, or watermarks.`;
+  const prompt = buildImagePrompt({
+    german: sanitizeText(german),
+    english: sanitizeText(english),
+    sense: sanitizeText(sense),
+    partOfSpeech: sanitizePartOfSpeech(partOfSpeech),
+    article: sanitizeArticle(article),
+    exampleDe: sanitizeText(exampleDe),
+    exampleEn: sanitizeText(exampleEn),
+    notes: sanitizeText(notes),
+  });
   const requestImage = async (requestPayload) =>
     fetch(`${openAiBaseUrl}/images/generations`, {
       method: "POST",

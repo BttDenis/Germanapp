@@ -194,6 +194,19 @@ export const App = () => {
     setEntries(saved);
   };
 
+  const handleGenerateEntryAudio = async (entry: WordEntry) => {
+    const voiceResult = await generateLlmVoice({
+      german: entry.german,
+    });
+
+    const updatedEntry: WordEntry = {
+      ...entry,
+      audioUrl: voiceResult.audioUrl,
+    };
+    const saved = updateWordEntry(updatedEntry);
+    setEntries(saved);
+  };
+
   return (
     <main className="app">
       {syncConflicts.length > 0 ? (
@@ -238,6 +251,7 @@ export const App = () => {
           onClearEntries={handleClearEntries}
           onDeleteEntry={handleDeleteEntry}
           onRegenerateEntry={handleRegenerateEntry}
+          onGenerateAudio={handleGenerateEntryAudio}
         />
       )}
     </main>

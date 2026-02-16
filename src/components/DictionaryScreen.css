@@ -309,6 +309,16 @@
   background: #fee2e2;
 }
 
+.dictionary-card__action--audio {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.dictionary-card__action--audio:hover:enabled {
+  background: #d1fae5;
+}
+
 @media (max-width: 720px) {
   .dictionary-screen__header {
     flex-direction: column;

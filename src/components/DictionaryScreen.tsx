@@ -8,6 +8,7 @@ type DictionaryScreenProps = {
   onClearEntries?: () => void;
   onDeleteEntry?: (entryId: string) => void;
   onRegenerateEntry?: (entry: WordEntry) => Promise<void>;
+  onGenerateAudio?: (entry: WordEntry) => Promise<void>;
 };
 
 const partOfSpeechLabel: Record<WordEntry["partOfSpeech"], string> = {
@@ -24,8 +25,10 @@ export const DictionaryScreen = ({
   onClearEntries,
   onDeleteEntry,
   onRegenerateEntry,
+  onGenerateAudio,
 }: DictionaryScreenProps) => {
   const [pendingRegenerations, setPendingRegenerations] = useState<Record<string, boolean>>({});
+  const [pendingAudioGenerations, setPendingAudioGenerations] = useState<Record<string, boolean>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleDelete = (entry: WordEntry) => {
@@ -52,6 +55,26 @@ export const DictionaryScreen = ({
       setErrorMessage(`Could not regenerate "${entry.german}". Check your LLM settings and try again.`);
     } finally {
       setPendingRegenerations((current) => {
+        const next = { ...current };
+        delete next[entry.id];
+        return next;
+      });
+    }
+  };
+
+  const handleGenerateAudio = async (entry: WordEntry) => {
+    if (!onGenerateAudio) {
+      return;
+    }
+    setErrorMessage(null);
+    setPendingAudioGenerations((current) => ({ ...current, [entry.id]: true }));
+    try {
+      await onGenerateAudio(entry);
+    } catch (error) {
+      console.error("Audio generation failed:", error);
+      setErrorMessage(`Could not generate pronunciation for "${entry.german}". Check your LLM settings and try again.`);
+    } finally {
+      setPendingAudioGenerations((current) => {
         const next = { ...current };
         delete next[entry.id];
         return next;
@@ -95,6 +118,8 @@ export const DictionaryScreen = ({
       <div className="dictionary-screen__list">
         {entries.map((entry) => {
           const isRegenerating = Boolean(pendingRegenerations[entry.id]);
+          const isGeneratingAudio = Boolean(pendingAudioGenerations[entry.id]);
+          const isBusy = isRegenerating || isGeneratingAudio;
 
           return (
             <article className={`dictionary-card dictionary-card--${entry.partOfSpeech}`} key={entry.id}>
@@ -190,14 +215,24 @@ export const DictionaryScreen = ({
                 <p className="dictionary-card__translation">{entry.exampleEn}</p>
               </div>
               {entry.notes ? <p className="dictionary-card__notes">{entry.notes}</p> : null}
-              {onDeleteEntry || onRegenerateEntry ? (
+              {onDeleteEntry || onRegenerateEntry || onGenerateAudio ? (
                 <div className="dictionary-card__actions">
+                  {onGenerateAudio ? (
+                    <button
+                      type="button"
+                      className="dictionary-card__action dictionary-card__action--audio"
+                      onClick={() => void handleGenerateAudio(entry)}
+                      disabled={isBusy}
+                    >
+                      {isGeneratingAudio ? "Generating audio..." : entry.audioUrl ? "Regenerate audio" : "Generate audio"}
+                    </button>
+                  ) : null}
                   {onRegenerateEntry ? (
                     <button
                       type="button"
                       className="dictionary-card__action dictionary-card__action--regenerate"
                       onClick={() => void handleRegenerate(entry)}
-                      disabled={isRegenerating}
+                      disabled={isBusy}
                     >
                       {isRegenerating ? "Regenerating..." : "Regenerate"}
                     </button>
@@ -207,7 +242,7 @@ export const DictionaryScreen = ({
                       type="button"
                       className="dictionary-card__action dictionary-card__action--delete"
                       onClick={() => handleDelete(entry)}
-                      disabled={isRegenerating}
+                      disabled={isBusy}
                     >
                       Delete
                     </button>
